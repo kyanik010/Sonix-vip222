@@ -1691,7 +1691,7 @@
 
           <!-- Channel / Content Info Row -->
           <div class="player-info-row">
-            <div id="player-ch-name" class="player-channel-title">beIN SPORTS 1 HD</div>
+            <div id="player-ch-name" class="player-channel-title">—</div>
             <button id="player-heart-btn" class="player-fav-btn focusable" title="إضافة للمفضلة">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
@@ -2211,6 +2211,8 @@
 
       showError(msg) {
         this.loaderEl.classList.remove('active');
+        const message = this.errorEl.querySelector('div:nth-child(2)');
+        if (message) message.textContent = msg || 'تعذر تشغيل البث من الخادم.';
         this.errorEl.classList.add('active');
       }
 
@@ -2285,8 +2287,8 @@
         } else {
           scoreOverlay.style.display = 'none';
           vodMetaBox.style.display = 'flex';
-          document.getElementById('vod-rating-tag').textContent = `★ ${item.rating || '8.5'}/10`;
-          document.getElementById('vod-specs-tag').textContent = item.specs || '4K HDR';
+          document.getElementById('vod-rating-tag').textContent = `★ ${item.rating || '—'}/10`;
+          document.getElementById('vod-specs-tag').textContent = item.specs || '—';
           document.getElementById('vod-cat-tag').textContent = item.categoryName;
           document.getElementById('vod-desc-text').textContent = item.desc || 'لا يوجد وصف متاح.';
           primaryLabel.textContent = currentAppMode === 'movies' ? 'تشغيل الفيلم' : 'تشغيل الحلقة';
@@ -3115,6 +3117,16 @@
           lastRowTap = now;
         });
 
+        const logoBox = row.querySelector('.channel-logo-box');
+        if (logoBox && it.logo) {
+          const logoImage = document.createElement('img');
+          logoImage.className = 'provider-logo';
+          logoImage.alt = it.name;
+          logoImage.referrerPolicy = 'no-referrer';
+          logoImage.src = it.logo;
+          logoImage.onerror = () => logoImage.remove();
+          logoBox.replaceChildren(logoImage);
+        }
         container.appendChild(row);
       });
     }
