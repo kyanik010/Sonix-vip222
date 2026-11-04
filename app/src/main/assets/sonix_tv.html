@@ -2258,9 +2258,28 @@
             if (this.hlsInstance) this.hlsInstance.startLoad();
             else this.loadItem(this.currentItem);
           }, 1500);
-        } else {
-          this.showError('تعذر الاتصال بمصدر البث.');
+          return;
         }
+
+        // HLS.js can fail on provider-specific manifests even when Media3 can play them.
+        // Hand the same authenticated stream URL to the existing native ExoPlayer bridge.
+        if (url && window.NativePlayback) {
+          if (this.hlsInstance) {
+            this.hlsInstance.destroy();
+            this.hlsInstance = null;
+          }
+          this.videoEl.pause();
+          this.videoEl.removeAttribute('src');
+          this.videoEl.load();
+          const viewport = document.querySelector('.video-viewport');
+          if (viewport) {
+            const rect = viewport.getBoundingClientRect();
+            window.NativePlayback.play(url, rect.left, rect.top, rect.width, rect.height);
+            this.updateUiInfo(this.currentItem);
+            return;
+          }
+        }
+        this.showError('تعذر الاتصال بمصدر البث.');
       }
 
       handleError(e) {
