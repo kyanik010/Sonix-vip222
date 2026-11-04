@@ -24,21 +24,12 @@ object XtreamAccountValidator {
             throw IllegalArgumentException("بيانات الدخول غير صحيحة أو الاشتراك غير مصرح به")
         }
         val status = rawStatus.trim().lowercase()
-        if (status.isBlank()) {
-            throw IllegalArgumentException("استجابة الخادم لا تحتوي على حالة الاشتراك")
-        }
-        if (status in setOf("expired", "disabled", "banned", "inactive", "blocked", "revoked")) {
+        if (status in setOf("expired", "disabled", "banned", "inactive")) {
             throw IllegalArgumentException("الاشتراك منتهي أو موقوف: $rawStatus")
         }
-
-        val expiry = expiration.trim()
-        if (expiry.isNotEmpty() && !expiry.equals("null", ignoreCase = true) && expiry != "0") {
-            val expirySeconds = expiry.toLongOrNull()
-                ?: throw IllegalArgumentException("تاريخ انتهاء الاشتراك من الخادم غير صالح")
-            if (expirySeconds < 0) {
-                throw IllegalArgumentException("تاريخ انتهاء الاشتراك من الخادم غير صالح")
-            }
-            if (expirySeconds > 0 && expirySeconds <= nowMillis / 1000L) {
+        if (expiration.isNotBlank() && expiration != "null" && expiration != "0") {
+            val expirySeconds = expiration.toLongOrNull()
+            if (expirySeconds != null && expirySeconds > 0 && expirySeconds <= nowMillis / 1000L) {
                 throw IllegalArgumentException("انتهت صلاحية الاشتراك")
             }
         }

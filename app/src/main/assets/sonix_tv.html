@@ -2478,7 +2478,8 @@
         }
         this.audioEl.pause();
 
-        const audioUrl = this.selectedSourceChannel.audioOnlyUrl || this.selectedSourceChannel.streamUrl;
+        const audioUrl = this.selectedSourceChannel.audioOnlyUrl || this.selectedSourceChannel.streamUrl || makeStreamUrl('live', this.selectedSourceChannel.id, {container_extension:this.selectedSourceChannel.containerExtension || 'ts'});
+        this.selectedSourceChannel.streamUrl = audioUrl;
         const isM3u8 = audioUrl && audioUrl.includes('.m3u8');
 
         if (isM3u8 && window.Hls && Hls.isSupported()) {
@@ -2913,12 +2914,12 @@
       liveCategories = [{id:'all',name:'جميع القنوات'}].concat(lc,[{id:'favorites',name:'المفضلة'}]);
       liveChannels = rawLive.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'قناة',
         category:x.category_id == null ? '' : 'live-' + x.category_id,categoryName:categoryName(lc,'live-',x.category_id),
-        logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('live',x.stream_id,x),audioOnlyUrl:'',
+        logo:x.stream_icon || '',logoText:'',streamUrl:'',audioOnlyUrl:'',
         epgChannelId:x.epg_channel_id || '',containerExtension:x.container_extension || 'ts'}));
       movieCategories = [{id:'all',name:'جميع الأفلام'}].concat(mc,[{id:'favorites',name:'المفضلة'}]);
       movies = rawMovies.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'فيلم',
         category:x.category_id == null ? '' : 'movie-' + x.category_id,categoryName:categoryName(mc,'movie-',x.category_id),
-        logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('movie',x.stream_id,x),
+        logo:x.stream_icon || '',logoText:'',streamUrl:'',
         rating:x.rating || '',desc:x.plot || '',containerExtension:x.container_extension || 'mp4'}));
       seriesCategories = [{id:'all',name:'جميع المسلسلات'}].concat(sc,[{id:'favorites',name:'المفضلة'}]);
       series = rawSeries.map((x,i) => ({id:String(x.series_id),seriesId:String(x.series_id),number:i+1,name:x.name || 'مسلسل',
@@ -2946,8 +2947,6 @@
         liveCategories=ensureAll(c.liveCategories || [],'جميع القنوات'); liveChannels=c.liveChannels || [];
         movieCategories=ensureAll(c.movieCategories || [],'جميع الأفلام'); movies=c.movies || [];
         seriesCategories=ensureAll(c.seriesCategories || [],'جميع المسلسلات'); series=c.series || [];
-        liveChannels=liveChannels.map(x=>({...x,streamUrl:makeStreamUrl('live',x.id,{container_extension:x.containerExtension || 'ts'})}));
-        movies=movies.map(x=>({...x,streamUrl:makeStreamUrl('movie',x.id,{container_extension:x.containerExtension || 'mp4'})}));
         const hasContent=liveChannels.length + movies.length + series.length > 0;
         const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display=hasContent?'block':'none';
         return hasContent;
@@ -3290,6 +3289,9 @@
       });
 
       if (currentAppMode === 'series' && item.seriesId) { openSeriesEpisodes(item); return; }
+      if (currentAppMode === 'live' && !item.streamUrl) {
+        item.streamUrl=makeStreamUrl('live',item.id,{container_extension:item.containerExtension || 'ts'});
+      }
       if (currentAppMode === 'movies' && window.XtreamBridge) {
         try {
           const details=parseNative(window.XtreamBridge.vodInfo(item.id));

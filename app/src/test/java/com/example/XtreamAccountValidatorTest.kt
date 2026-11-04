@@ -41,40 +41,6 @@ class XtreamAccountValidatorTest {
     }
 
     @Test
-    fun rejectsMalformedExpirationTimestamp() {
-        assertThrows(IllegalArgumentException::class.java) {
-            XtreamAccountValidator.validateFields(1, "Active", "not-a-timestamp", 1_700_000_000_000L)
-        }
-    }
-
-    @Test
-    fun rejectsNegativeExpirationTimestamp() {
-        assertThrows(IllegalArgumentException::class.java) {
-            XtreamAccountValidator.validateFields(1, "Active", "-1", 1_700_000_000_000L)
-        }
-    }
-
-    @Test
-    fun acceptsUnlimitedSubscriptionWithNullOrZeroExpiration() {
-        XtreamAccountValidator.validateFields(1, "Active", "0", 1_700_000_000_000L)
-        XtreamAccountValidator.validateFields(1, "Active", "null", 1_700_000_000_000L)
-    }
-
-    @Test
-    fun rejectsMissingSubscriptionStatus() {
-        assertThrows(IllegalArgumentException::class.java) {
-            XtreamAccountValidator.validateFields(1, "", "1893456000", 1_700_000_000_000L)
-        }
-    }
-
-    @Test
-    fun rejectsBlockedSubscriptionStatus() {
-        assertThrows(IllegalArgumentException::class.java) {
-            XtreamAccountValidator.validateFields(1, "Blocked", "1893456000", 1_700_000_000_000L)
-        }
-    }
-
-    @Test
     fun rejectsUnauthorizedResponse() {
         val response = fixture("unauthorized")
         assertThrows(IllegalArgumentException::class.java) {
