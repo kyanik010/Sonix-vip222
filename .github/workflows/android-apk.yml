@@ -70,7 +70,7 @@ jobs:
           inline_scripts = [script for script in scripts if script.strip()]
           if not inline_scripts:
               raise SystemExit("No inline application script found")
-          Path("/tmp/sonix-tv-inline.js").write_text("\\n".join(inline_scripts), encoding="utf-8")
+          Path("/tmp/sonix-tv-inline.js").write_text("\n".join(inline_scripts), encoding="utf-8")
           forbidden = (
               "MOCK_", "BigBuckBunny", "TearsOfSteel", "ForBigger",
               "test-streams", "example.com", "محمد الأحمد",
