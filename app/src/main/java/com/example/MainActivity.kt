@@ -118,6 +118,8 @@ class MainActivity : ComponentActivity() {
                     val player = ExoPlayer.Builder(this@MainActivity).build()
                     val view = PlayerView(this@MainActivity).apply {
                         useController = false
+                        isFocusable = false
+                        isFocusableInTouchMode = false
                         setShutterBackgroundColor(Color.BLACK)
                         setBackgroundColor(Color.BLACK)
                         this.player = player
