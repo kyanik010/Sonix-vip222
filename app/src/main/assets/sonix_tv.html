@@ -2063,8 +2063,50 @@
     let movieCategories = [], movies = [];
     let seriesCategories = [], series = [];
     let activeCredentials = null, accountInfo = null, isOfflineCache = false;
-    const memoryFavorites = new Set(JSON.parse(localStorage.getItem('sonix_favorites_v1') || '[]'));
-    const saveFavorites = () => localStorage.setItem('sonix_favorites_v1', JSON.stringify([...memoryFavorites]));
+    const FAVORITES_STORAGE_KEY = 'sonix_favorites_v2';
+    function readSavedFavorites() {
+      try {
+        const values = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+        return Array.isArray(values) ? values.filter(value => typeof value === 'string') : [];
+      } catch (_) { return []; }
+    }
+    const memoryFavorites = new Set(readSavedFavorites());
+    const saveFavorites = () => {
+      try { localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...memoryFavorites])); }
+      catch (error) { console.warn('Unable to persist favorites', error); }
+    };
+    function favoriteKey(itemId, mode = currentAppMode) {
+      return mode + ':' + String(itemId);
+    }
+    function isFavorite(itemId, mode = currentAppMode) {
+      return memoryFavorites.has(favoriteKey(itemId, mode));
+    }
+    function resolveProviderImageUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      try {
+        const base = activeCredentials && activeCredentials.server ? activeCredentials.server : document.baseURI;
+        const url = new URL(raw, base);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+      } catch (_) { return ''; }
+    }
+    function setProviderImage(container, value, alt, fallbackText = '') {
+      if (!container) return;
+      container.textContent = fallbackText || '';
+      const src = resolveProviderImageUrl(value);
+      if (!src) return;
+      const image = document.createElement('img');
+      image.className = 'provider-logo';
+      image.alt = alt || '';
+      image.loading = 'lazy';
+      image.referrerPolicy = 'no-referrer';
+      image.src = src;
+      image.onerror = () => {
+        image.remove();
+        if (!container.querySelector('img')) container.textContent = fallbackText || '';
+      };
+      container.replaceChildren(image);
+    }
 
     /**
      * =========================================================================
@@ -2905,7 +2947,7 @@
       button.disabled=true;button.textContent='جارٍ التحقق من الاشتراك...';setLoginMessage('');
       try {
         const result=parseNative(window.XtreamBridge.login(server,username,password));
-        activeCredentials={username:result.user_info.username || username};
+        activeCredentials={server:server.trim().replace(/\/$/,''),username:result.user_info.username || username};
         isOfflineCache=false;
         updateAccount(result.user_info);
         loadXtreamContent();
@@ -2915,7 +2957,7 @@
         if (offlineFallback) {
           try {
             const saved=parseNative(window.XtreamBridge.savedCredentials());
-            activeCredentials={username:saved.username};
+            activeCredentials={server:saved.server,username:saved.username};
           } catch (_) {}
         }
         const networkFailure = /تعذر الاتصال|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(error.message || ''));
@@ -2964,12 +3006,15 @@
       try {
         if(!activeCredentials) throw new Error('سجّل الدخول أولاً');
         loadXtreamContent();
+        const status=document.getElementById('profile-server-status');
+        if(status) status.textContent='تم التحقق من الاشتراك';
         showToast('تم تحديث المحتوى من خادم الاشتراك');
       } catch(error) {
-        const hasCache=activeCredentials && restoreXtreamCache();
-        isOfflineCache=!!hasCache;
+        const hasCache=!!(activeCredentials && restoreXtreamCache());
+        isOfflineCache=hasCache;
         const note=document.getElementById('cache-status'); if(note) note.style.display=hasCache?'block':'none';
         const status=document.getElementById('profile-server-status'); if(status) status.textContent=hasCache?'تعذر التحديث — بيانات سابقة':'تعذر الاتصال بالخادم';
+        if (hasCache) { renderCategories(); renderItems(); renderAudioSourcePicker(); }
         showToast('فشل التحديث: ' + (error.message || 'تعذر الاتصال')); 
       }
     }
@@ -3046,14 +3091,15 @@
         item.tabIndex = 0;
         item.dataset.catId = cat.id;
 
-        const count = cat.id === 'favorites' 
-          ? memoryFavorites.size 
-          : allItems.filter(c => c.category === cat.id).length;
-
-        item.innerHTML = `
-          <span>${cat.name}</span>
-          <span class="category-badge">${count}</span>
-        `;
+        const count = cat.id === 'favorites'
+          ? allItems.filter(entry => isFavorite(entry.id)).length
+          : allItems.filter(entry => entry.category === cat.id).length;
+        const name = document.createElement('span');
+        name.textContent = cat.name || 'تصنيف';
+        const badge = document.createElement('span');
+        badge.className = 'category-badge';
+        badge.textContent = String(count);
+        item.append(name, badge);
 
         item.addEventListener('click', () => {
           selectCategory(cat.id);
@@ -3087,7 +3133,7 @@
       let items = [];
 
       if (currentActiveCategory === 'favorites') {
-        items = allItems.filter(c => memoryFavorites.has(c.id));
+        items = allItems.filter(c => isFavorite(c.id));
       } else {
         items = allItems.filter(c => c.category === currentActiveCategory);
       }
@@ -3107,16 +3153,16 @@
       items.forEach(it => {
         const row = document.createElement('div');
         const isSelected = currentSelectedItem && currentSelectedItem.id === it.id;
-        const isFav = memoryFavorites.has(it.id);
+        const isFav = isFavorite(it.id);
 
         row.className = `channel-row focusable ${isSelected ? 'selected' : ''}`;
         row.tabIndex = 0;
         row.dataset.itemId = it.id;
 
         row.innerHTML = `
-          <span class="channel-number">${it.number}</span>
-          <div class="channel-logo-box">${it.logoText}</div>
-          <span class="channel-name">${it.name}</span>
+          <span class="channel-number"></span>
+          <div class="channel-logo-box"></div>
+          <span class="channel-name"></span>
           <svg class="channel-fav-star ${isFav ? 'active' : ''}" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
@@ -3149,26 +3195,37 @@
           lastRowTap = now;
         });
 
-        const logoBox = row.querySelector('.channel-logo-box');
-        if (logoBox && it.logo) {
-          const logoImage = document.createElement('img');
-          logoImage.className = 'provider-logo';
-          logoImage.alt = it.name;
-          logoImage.referrerPolicy = 'no-referrer';
-          logoImage.src = it.logo;
-          logoImage.onerror = () => logoImage.remove();
-          logoBox.replaceChildren(logoImage);
-        }
+        row.querySelector('.channel-number').textContent = String(it.number || '');
+        row.querySelector('.channel-name').textContent = it.name || '';
+        setProviderImage(row.querySelector('.channel-logo-box'), it.logo, it.name, it.logoText || '');
         container.appendChild(row);
       });
     }
 
     function loadLiveEpg(item) {
       if (!item || !window.XtreamBridge) return;
+      item.epgTitle = '';
+      item.epgDesc = '';
+      item.epgNext = '';
+      const currentTitle = document.getElementById('epg-curr-title');
+      const currentDesc = document.getElementById('epg-curr-desc');
+      const nextTitle = document.getElementById('epg-next-title');
+      if (currentSelectedItem && currentSelectedItem.id === item.id) {
+        if (currentTitle) currentTitle.textContent = 'جارٍ تحميل دليل البرامج...';
+        if (currentDesc) currentDesc.textContent = 'يرجى الانتظار';
+        if (nextTitle) nextTitle.textContent = 'لا توجد بيانات بعد';
+      }
       try {
         const response=parseNative(window.XtreamBridge.shortEpg(item.id));
         const listings=response.epg_listings || [];
-        if (!listings.length) return;
+        if (!listings.length) {
+          if (currentSelectedItem && currentSelectedItem.id === item.id) {
+            if (currentTitle) currentTitle.textContent = 'لا تتوفر بيانات EPG لهذه القناة';
+            if (currentDesc) currentDesc.textContent = 'لم يرسل الخادم جدول برامج';
+            if (nextTitle) nextTitle.textContent = 'لا توجد بيانات للبرنامج التالي';
+          }
+          return;
+        }
         const decodeText=value => {
           try { return decodeURIComponent(escape(atob(value || ''))); } catch (_) { return value || ''; }
         };
@@ -3181,7 +3238,14 @@
           document.getElementById('epg-curr-desc').textContent=item.epgDesc || 'لا توجد تفاصيل إضافية';
           document.getElementById('epg-next-title').textContent=item.epgNext || 'لا توجد بيانات للبرنامج التالي';
         }
-      } catch(error) { console.warn('EPG unavailable',error); }
+      } catch(error) {
+        console.warn('EPG unavailable',error);
+        if (currentSelectedItem && currentSelectedItem.id === item.id) {
+          if (currentTitle) currentTitle.textContent = 'تعذر تحميل دليل البرامج';
+          if (currentDesc) currentDesc.textContent = error.message || 'الخادم لم يوفر بيانات EPG';
+          if (nextTitle) nextTitle.textContent = 'لا توجد بيانات للبرنامج التالي';
+        }
+      }
     }
     function selectItem(item) {
       currentSelectedItem = item;
@@ -3200,6 +3264,9 @@
           item.logo=info.movie_image || item.logo || '';
           item.containerExtension=movie.container_extension || item.containerExtension || 'mp4';
           item.streamUrl=makeStreamUrl('movie',item.id,{container_extension:item.containerExtension});
+          const selectedRow = Array.from(document.querySelectorAll('.channel-row'))
+            .find(row => row.dataset.itemId === String(item.id));
+          if (selectedRow) setProviderImage(selectedRow.querySelector('.channel-logo-box'), item.logo, item.name, item.logoText || '');
         } catch (error) { console.warn('VOD details unavailable',error); }
       }
       if (!item.streamUrl) { showToast('رابط التشغيل غير متوفر من الخادم'); return; }
@@ -3224,10 +3291,12 @@
         item.className = `audio-picker-item focusable ${isCurrentAudio ? 'active' : ''}`;
         item.tabIndex = 0;
         item.dataset.channelId = ch.id;
-        item.innerHTML = `
-          <span>${ch.number}. ${ch.name}</span>
-          <span style="font-size:0.7rem; color:var(--text-muted);">${ch.categoryName}</span>
-        `;
+        const channelName = document.createElement('span');
+        channelName.textContent = String(ch.number || '') + '. ' + (ch.name || '');
+        const categoryName = document.createElement('span');
+        categoryName.style.cssText = 'font-size:0.7rem;color:var(--text-muted);';
+        categoryName.textContent = ch.categoryName || '';
+        item.append(channelName, categoryName);
         item.addEventListener('click', () => {
           dualAudioEngine.setSourceChannel(ch);
         });
@@ -3236,7 +3305,7 @@
     }
 
     function updateFavoriteButtons(itemId) {
-      const isFav = memoryFavorites.has(itemId);
+      const isFav = isFavorite(itemId);
       const heartBtn = document.getElementById('player-heart-btn');
       const favLabel = document.getElementById('fav-btn-label');
       if (heartBtn) heartBtn.classList.toggle('active', isFav);
@@ -3245,11 +3314,12 @@
 
     function toggleFavorite(itemId) {
       if (!itemId) return;
-      if (memoryFavorites.has(itemId)) {
-        memoryFavorites.delete(itemId);
+      const key = favoriteKey(itemId);
+      if (memoryFavorites.has(key)) {
+        memoryFavorites.delete(key);
         showToast('تمت الإزالة من المفضلة');
       } else {
-        memoryFavorites.add(itemId);
+        memoryFavorites.add(key);
         showToast('تمت الإضافة إلى المفضلة');
       }
       saveFavorites();
@@ -3380,7 +3450,7 @@
         const saved=parseNative(window.XtreamBridge.savedCredentials());
         document.getElementById('login-server').value=saved.server || '';
         document.getElementById('login-username').value=saved.username || '';
-        activeCredentials={username:saved.username};
+        activeCredentials={server:saved.server,username:saved.username};
         try {
           const restored=parseNative(window.XtreamBridge.restoreSession());
           isOfflineCache=false;
