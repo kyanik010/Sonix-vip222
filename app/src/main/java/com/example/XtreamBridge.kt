@@ -80,6 +80,11 @@ class XtreamBridge(context: Context) {
     }
 
     @JavascriptInterface
+    fun vodInfo(vodId: String): String {
+        return requestSaved("get_vod_info", "vod_id" to vodId)
+    }
+
+    @JavascriptInterface
     fun savedCredentials(): String {
         return try {
             val credentials = vault.read() ?: return JSONObject().put("success", false).toString()
