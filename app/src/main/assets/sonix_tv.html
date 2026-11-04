@@ -3293,19 +3293,23 @@
         item.streamUrl=makeStreamUrl('live',item.id,{container_extension:item.containerExtension || 'ts'});
       }
       if (currentAppMode === 'movies' && window.XtreamBridge) {
-        try {
-          const details=parseNative(window.XtreamBridge.vodInfo(item.id));
-          const info=details.info || {};
-          const movie=details.movie_data || {};
-          item.desc=info.plot || item.desc || '';
-          item.rating=info.rating || item.rating || '';
-          item.logo=info.movie_image || item.logo || '';
-          item.containerExtension=movie.container_extension || item.containerExtension || 'mp4';
-          item.streamUrl=makeStreamUrl('movie',item.id,{container_extension:item.containerExtension});
-          const selectedRow = Array.from(document.querySelectorAll('.channel-row'))
-            .find(row => row.dataset.itemId === String(item.id));
-          if (selectedRow) setProviderImage(selectedRow.querySelector('.channel-logo-box'), item.logo, item.name, item.logoText || '');
-        } catch (error) { console.warn('VOD details unavailable',error); }
+        if (!isOfflineCache) {
+          try {
+            const details=parseNative(window.XtreamBridge.vodInfo(item.id));
+            const info=details.info || {};
+            const movie=details.movie_data || {};
+            item.desc=info.plot || item.desc || '';
+            item.rating=info.rating || item.rating || '';
+            item.logo=info.movie_image || item.logo || '';
+            item.containerExtension=movie.container_extension || item.containerExtension || 'mp4';
+            const selectedRow = Array.from(document.querySelectorAll('.channel-row'))
+              .find(row => row.dataset.itemId === String(item.id));
+            if (selectedRow) setProviderImage(selectedRow.querySelector('.channel-logo-box'), item.logo, item.name, item.logoText || '');
+          } catch (error) { console.warn('VOD details unavailable',error); }
+        }
+        if (!item.streamUrl) {
+          item.streamUrl=makeStreamUrl('movie',item.id,{container_extension:item.containerExtension || 'mp4'});
+        }
       }
       if (!item.streamUrl) { showToast('رابط التشغيل غير متوفر من الخادم'); return; }
       videoPlaybackController.loadItem(item);
