@@ -58,6 +58,9 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
       - name: Build APK with assembleDebug
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
