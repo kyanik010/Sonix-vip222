@@ -49,7 +49,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background-color: var(--bg-screen);
+      background-color: transparent;
       font-family: var(--font-family);
       color: var(--text-white);
       direction: rtl;
@@ -61,9 +61,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background: radial-gradient(circle at 85% 15%, var(--copper-wave) 0%, transparent 45%),
-                  radial-gradient(circle at 15% 85%, var(--teal-wave) 0%, transparent 45%),
-                  linear-gradient(135deg, var(--bg-main-start) 0%, var(--bg-main-end) 100%);
+      background: transparent;
       display: flex;
       flex-direction: column;
     }
@@ -762,7 +760,7 @@
     .live-player-col {
       flex: 1;
       min-height: 0;
-      background: #0A0F14;
+      background: transparent;
       display: flex;
       flex-direction: column;
       padding: clamp(10px, 1.5vh, 16px) clamp(12px, 1.5vw, 20px);
@@ -774,7 +772,7 @@
       position: relative;
       width: 100%;
       aspect-ratio: 16 / 9;
-      background: #000;
+      background: transparent;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 12px 32px rgba(0,0,0,0.6);
@@ -834,10 +832,7 @@
       height: 18px;
     }
     #main-video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
+      display: none;
     }
 
     .player-match-overlay {
@@ -2130,52 +2125,38 @@
     class VideoPlaybackController {
       constructor() {
         this.videoEl = document.getElementById('main-video');
+        this.viewport = document.querySelector('.video-viewport');
         this.loaderEl = document.getElementById('player-loader');
         this.loaderText = document.getElementById('player-loader-text');
         this.errorEl = document.getElementById('player-error');
         this.currentItem = null;
-        this.hlsInstance = null;
         this.retryAttempts = 0;
         this.maxRetries = 3;
         this.isFullscreen = false;
+        this.isMuted = false;
         this.bindEvents();
       }
 
       bindEvents() {
-        this.videoEl.addEventListener('waiting', () => this.showLoader('جارٍ تخزين البث مؤقتاً...'));
-        this.videoEl.addEventListener('playing', () => this.hideLoader());
-        this.videoEl.addEventListener('canplay', () => this.hideLoader());
-        this.videoEl.addEventListener('error', (e) => this.handleError(e));
-
         document.getElementById('player-retry-action').addEventListener('click', () => {
           if (this.currentItem) this.loadItem(this.currentItem);
         });
-
         document.getElementById('ctrl-play-pause').addEventListener('click', () => this.togglePlayPause());
         document.getElementById('ctrl-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('ctrl-mute-btn').addEventListener('click', () => this.toggleMute());
-
         const exitBtn = document.getElementById('btn-exit-fullscreen');
-        if (exitBtn) {
-          exitBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.exitFullscreen();
-          });
-        }
-
-        // DOUBLE-CLICK & DOUBLE-TAP ON VIDEO VIEWPORT TO EXPAND / COLLAPSE FULLSCREEN
-        const viewport = document.querySelector('.video-viewport');
-        if (viewport) {
-          viewport.addEventListener('dblclick', (e) => {
+        if (exitBtn) exitBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.exitFullscreen();
+        });
+        if (this.viewport) {
+          this.viewport.addEventListener('dblclick', (e) => {
             e.preventDefault();
             this.toggleFullscreen();
           });
-
           let lastTapTime = 0;
-          viewport.addEventListener('touchend', (e) => {
-            if (e.target.closest('.control-btn') || e.target.closest('.action-btn') || e.target.closest('#btn-exit-fullscreen')) {
-              return;
-            }
+          this.viewport.addEventListener('touchend', (e) => {
+            if (e.target.closest('.control-btn') || e.target.closest('.action-btn') || e.target.closest('#btn-exit-fullscreen')) return;
             const now = Date.now();
             if (now - lastTapTime < 350 && now - lastTapTime > 40) {
               e.preventDefault();
@@ -2184,109 +2165,50 @@
             lastTapTime = now;
           });
         }
+        window.addEventListener('resize', () => this.syncNativeBounds());
+        window.addEventListener('scroll', () => this.syncNativeBounds(), true);
       }
 
       loadItem(item) {
         if (!item) return;
-        // The HTML preview is the only video surface used by SONIX TV.
-        if (window.NativePlayback) window.NativePlayback.stop();
-
         if (dualAudioEngine && dualAudioEngine.isActive &&
             dualAudioEngine.selectedSourceChannel &&
             String(dualAudioEngine.selectedSourceChannel.id) === String(item.id)) {
           dualAudioEngine.stopExternalAudio(false);
         }
-
         this.currentItem = item;
         this.retryAttempts = 0;
         this.errorEl.classList.remove('active');
-        this.showLoader(`جارٍ الاتصال بـ ${item.name}...`);
-
-        if (this.hlsInstance) {
-          this.hlsInstance.destroy();
-          this.hlsInstance = null;
-        }
-
-        this.videoEl.pause();
-        this.videoEl.removeAttribute('src');
-        this.videoEl.load();
-
-        const streamUrl = item.streamUrl;
+        this.showLoader('جارٍ الاتصال بـ ' + (item.name || 'المحتوى') + '...');
+        const streamUrl = String(item.streamUrl || '').trim();
         if (!streamUrl) {
-          this.showError('رابط البث غير متوفر من الاشتراك.');
+          if (window.NativePlayback) window.NativePlayback.stop();
+          this.showError('رابط التشغيل غير متوفر من اشتراك IPTV.');
           return;
         }
-
-        const isM3u8 = /\.m3u8(?:$|\?)/i.test(streamUrl);
-        if (isM3u8 && window.Hls && Hls.isSupported()) {
-          const hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-            backBufferLength: 60
-          });
-          this.hlsInstance = hls;
-          hls.loadSource(streamUrl);
-          hls.attachMedia(this.videoEl);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            if (this.hlsInstance === hls) this.videoEl.play().catch(() => {});
-          });
-
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            if (this.hlsInstance !== hls || !data.fatal) return;
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              this.retryOrFallback(streamUrl);
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              hls.recoverMediaError();
-            } else {
-              hls.destroy();
-              this.hlsInstance = null;
-              this.showError('خطأ غير متوقع في محرك HLS.');
-            }
-          });
-        } else {
-          // Use the existing HTML video preview; never create a native video window.
-          this.videoEl.src = streamUrl;
-          this.videoEl.play().catch(error => {
-            console.warn('HTML video playback failed', error);
-          });
+        if (!window.NativePlayback || typeof window.NativePlayback.play !== 'function') {
+          this.showError('واجهة مشغل Android الأصلية غير متاحة.');
+          return;
         }
-
         this.updateUiInfo(item);
-      }
-
-      retryOrFallback(url) {
-        // Retry only in HLS.js; never hand video playback to Android ExoPlayer.
-        if (window.NativePlayback) window.NativePlayback.stop();
-
-        if (this.retryAttempts < this.maxRetries) {
-          this.retryAttempts++;
-          this.showLoader(`إعادة محاولة الاتصال (${this.retryAttempts}/${this.maxRetries})...`);
-
-          const retryItem = this.currentItem;
-          const retryHls = this.hlsInstance;
-          setTimeout(() => {
-            if (this.currentItem !== retryItem ||
-                this.hlsInstance !== retryHls ||
-                !retryHls) return;
-            retryHls.startLoad();
-          }, 1500);
+        const rect = this.viewport ? this.viewport.getBoundingClientRect() : null;
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+          this.showError('تعذر تحديد مساحة عرض الفيديو.');
           return;
         }
-
-        if (this.hlsInstance) {
-          this.hlsInstance.destroy();
-          this.hlsInstance = null;
-        }
-        this.videoEl.pause();
-        this.videoEl.removeAttribute('src');
-        this.videoEl.load();
-        this.showError('تعذر الاتصال بمصدر البث عبر مشغل HTML.');
+        // Live channels, movies and series episodes all use the same native Media3 player.
+        window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
       }
 
-      handleError(e) {
-        console.error('Video error', e);
-        this.showError('تعذر تشغيل رابط البث من الخادم. تحقق من الرابط أو أعد المحاولة.');
+      syncNativeBounds() {
+        if (!this.currentItem || !window.NativePlayback || typeof window.NativePlayback.resize !== 'function' || !this.viewport) return;
+        requestAnimationFrame(() => {
+          if (!this.currentItem || !window.NativePlayback || !this.viewport) return;
+          const rect = this.viewport.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            window.NativePlayback.resize(rect.left, rect.top, rect.width, rect.height);
+          }
+        });
       }
 
       showLoader(msg) {
@@ -2302,20 +2224,27 @@
       showError(msg) {
         this.loaderEl.classList.remove('active');
         const message = this.errorEl.querySelector('div:nth-child(2)');
-        if (message) message.textContent = msg || 'تعذر تشغيل البث من الخادم.';
+        if (message) message.textContent = msg || 'تعذر تشغيل المحتوى.';
         this.errorEl.classList.add('active');
       }
 
-      togglePlayPause() {
-        if (this.videoEl.paused) {
-          this.videoEl.play();
-          if (dualAudioEngine) dualAudioEngine.resume();
-          showToast('تم استئناف البث');
-        } else {
-          this.videoEl.pause();
-          if (dualAudioEngine) dualAudioEngine.pause();
-          showToast('تم الإيقاف المؤقت');
+      updatePlaybackState(isPlaying) {
+        const icon = document.getElementById('icon-play-state');
+        const button = document.getElementById('ctrl-play-pause');
+        if (icon) {
+          icon.innerHTML = isPlaying
+            ? '<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>'
+            : '<polygon points="5,3 19,12 5,21" fill="currentColor"/>';
         }
+        if (button) button.title = isPlaying ? 'إيقاف مؤقت' : 'تشغيل';
+      }
+
+      togglePlayPause() {
+        if (!window.NativePlayback || !window.NativePlayback.isActive()) {
+          if (this.currentItem) this.loadItem(this.currentItem);
+          return;
+        }
+        window.NativePlayback.toggle();
       }
 
       toggleMute() {
@@ -2323,23 +2252,22 @@
           showToast('صوت الفيديو مكتوم تلقائياً لأن الصوت الخارجي نشط');
           return;
         }
-        this.videoEl.muted = !this.videoEl.muted;
-        showToast(this.videoEl.muted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
+        this.isMuted = !this.isMuted;
+        this.videoEl.muted = this.isMuted;
+        if (window.NativePlayback) window.NativePlayback.setMuted(this.isMuted);
+        showToast(this.isMuted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
       }
 
       pause() {
-        if (this.videoEl && !this.videoEl.paused) this.videoEl.pause();
+        if (window.NativePlayback) window.NativePlayback.pause();
         if (dualAudioEngine) dualAudioEngine.pause();
       }
 
       toggleFullscreen() {
-        const container = document.querySelector('.video-viewport');
-        if (!container) return;
-        // Fullscreen applies to the HTML preview only.
-        if (window.NativePlayback) window.NativePlayback.stop();
-
+        if (!this.viewport) return;
         this.isFullscreen = !this.isFullscreen;
-        container.classList.toggle('is-fullscreen', this.isFullscreen);
+        this.viewport.classList.toggle('is-fullscreen', this.isFullscreen);
+        this.syncNativeBounds();
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
           showToast('تم التكبير إلى ملء الشاشة (انقر مرتين أو اضغط زر الرجوع للتصغير)');
@@ -2358,46 +2286,37 @@
       }
 
       updateUiInfo(item) {
-        document.getElementById('ticker-cat').textContent = item.categoryName;
-        document.getElementById('ticker-ch').textContent = item.name;
-        document.getElementById('player-ch-name').textContent = item.name;
-
-        // VOD vs Live metadata display
+        document.getElementById('ticker-cat').textContent = item.categoryName || '';
+        document.getElementById('ticker-ch').textContent = item.name || '';
+        document.getElementById('player-ch-name').textContent = item.name || '';
         const scoreOverlay = document.getElementById('player-score-overlay');
         const vodMetaBox = document.getElementById('player-vod-meta-box');
         const primaryLabel = document.getElementById('primary-action-label');
-
         if (currentAppMode === 'live') {
           scoreOverlay.style.display = 'flex';
           vodMetaBox.style.display = 'none';
           primaryLabel.textContent = 'دليل البرامج';
-          document.getElementById('epg-modal-channel-name').textContent = `دليل البرامج - ${item.name}`;
+          document.getElementById('epg-modal-channel-name').textContent = 'دليل البرامج - ' + item.name;
           document.getElementById('epg-curr-title').textContent = item.epgTitle || 'بث مباشر';
           document.getElementById('epg-curr-desc').textContent = item.epgDesc || 'لا توجد تفاصيل إضافية لهذا البرنامج.';
           document.getElementById('epg-next-title').textContent = item.epgNext || 'البرنامج التالي';
         } else {
           scoreOverlay.style.display = 'none';
           vodMetaBox.style.display = 'flex';
-          document.getElementById('vod-rating-tag').textContent = `★ ${item.rating || '—'}/10`;
+          document.getElementById('vod-rating-tag').textContent = '★ ' + (item.rating || '—') + '/10';
           document.getElementById('vod-specs-tag').textContent = item.specs || '—';
-          document.getElementById('vod-cat-tag').textContent = item.categoryName;
+          document.getElementById('vod-cat-tag').textContent = item.categoryName || '';
           document.getElementById('vod-desc-text').textContent = item.desc || 'لا يوجد وصف متاح.';
           primaryLabel.textContent = currentAppMode === 'movies' ? 'تشغيل الفيلم' : 'تشغيل الحلقة';
         }
-
         updateFavoriteButtons(item.id);
       }
 
       stopAndRelease() {
         if (dualAudioEngine) dualAudioEngine.stopExternalAudio(false);
         if (window.NativePlayback) window.NativePlayback.stop();
-        if (this.hlsInstance) {
-          this.hlsInstance.destroy();
-          this.hlsInstance = null;
-        }
-        this.videoEl.pause();
-        this.videoEl.removeAttribute('src');
-        this.videoEl.load();
+        this.currentItem = null;
+        this.updatePlaybackState(false);
       }
     }
 
@@ -3295,7 +3214,10 @@
     let dualAudioEngine;
     let remoteNavigator;
 
+    window.onNativePlaybackBuffering = function() { if (videoPlaybackController) videoPlaybackController.showLoader('جارٍ تخزين البث مؤقتاً...'); };
     window.onNativePlaybackReady = function() { if (videoPlaybackController) videoPlaybackController.hideLoader(); };
+    window.onNativePlaybackStateChanged = function(isPlaying) { if (videoPlaybackController) videoPlaybackController.updatePlaybackState(!!isPlaying); };
+    window.onNativePlaybackEnded = function() { if (videoPlaybackController) videoPlaybackController.updatePlaybackState(false); };
     window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل البث'); };
 
     document.addEventListener('DOMContentLoaded', () => {

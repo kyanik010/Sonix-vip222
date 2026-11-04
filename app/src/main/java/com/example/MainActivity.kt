@@ -7,16 +7,27 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.Shader
+import android.graphics.RadialGradient
+import android.graphics.PixelFormat
+import android.graphics.Paint
+import android.graphics.LinearGradient
+import android.graphics.ColorFilter
+import android.graphics.Canvas
 import android.net.Uri
 import android.view.ViewGroup
+import android.view.TextureView
 import android.widget.FrameLayout
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.datasource.DefaultHttpDataSource
 import kotlin.math.roundToInt
 import org.json.JSONObject
 import android.webkit.PermissionRequest
@@ -33,7 +44,7 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var rootContainer: FrameLayout? = null
     private var nativePlayer: ExoPlayer? = null
-    private var nativePlayerView: PlayerView? = null
+    private var nativePlayerView: TextureView? = null
     @Volatile private var nativePlayerActive = false
     @Volatile private var nativePlayerPlaying = false
     private var secondaryAudioPlayer: ExoPlayer? = null
@@ -59,7 +70,7 @@ class MainActivity : ComponentActivity() {
             val wv = WebView(this).apply {
                 isFocusable = true
                 isFocusableInTouchMode = true
-                setBackgroundColor(0xFF0A0F14.toInt())
+                setBackgroundColor(Color.TRANSPARENT)
 
                 settings.apply {
                     javaScriptEnabled = true
@@ -93,7 +104,7 @@ class MainActivity : ComponentActivity() {
             }
 
             webView = wv
-            val root = FrameLayout(this)
+            val root = FrameLayout(this).apply { background = SonixBackgroundDrawable() }
             root.addView(wv, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -124,6 +135,11 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 try {
                     stopNativePlayer()
+                    val mediaUri = Uri.parse(url.trim())
+                    require((mediaUri.scheme == "http" || mediaUri.scheme == "https") && !mediaUri.host.isNullOrBlank()) {
+                        "رابط البث غير صالح"
+                    }
+                    val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
                     val density = resources.displayMetrics.density
                     val params = FrameLayout.LayoutParams(
                         (width * density).roundToInt().coerceAtLeast(1),
@@ -132,49 +148,98 @@ class MainActivity : ComponentActivity() {
                         leftMargin = (left * density).roundToInt()
                         topMargin = (top * density).roundToInt()
                     }
-                    val mediaUri = Uri.parse(url)
-                    require((mediaUri.scheme == "http" || mediaUri.scheme == "https") && !mediaUri.host.isNullOrBlank()) {
-                        "رابط البث غير صالح"
-                    }
-                    val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
-                    val player = ExoPlayer.Builder(this@MainActivity).build()
-                    val view = PlayerView(this@MainActivity).apply {
-                        useController = false
+
+                    val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+                        .setUserAgent("SONIX-TV/1.0")
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(15000)
+                        .setReadTimeoutMs(30000)
+                    val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+                    val player = ExoPlayer.Builder(this@MainActivity)
+                        .setMediaSourceFactory(mediaSourceFactory)
+                        .build()
+                    val textureView = TextureView(this@MainActivity).apply {
+                        setBackgroundColor(Color.BLACK)
                         isFocusable = false
                         isFocusableInTouchMode = false
-                        setShutterBackgroundColor(Color.BLACK)
-                        setBackgroundColor(Color.BLACK)
-                        this.player = player
                     }
+
                     nativePlayer = player
-                    player.volume = if (externalAudioActive || nativeVideoMuted) 0f else 1f
-                    nativePlayerView = view
+                    nativePlayerView = textureView
                     nativePlayerActive = true
                     nativePlayerPlaying = false
-                    container.addView(view, params)
-                    view.bringToFront()
+                    player.volume = if (externalAudioActive || nativeVideoMuted) 0f else 1f
+                    // Keep the native video surface behind the transparent WebView viewport,
+                    // so the existing HTML controls and overlays remain interactive.
+                    container.addView(textureView, 0, params)
+                    player.setVideoTextureView(textureView)
+
                     player.addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
-                            if (playbackState == Player.STATE_READY) {
-                                webView?.evaluateJavascript("window.onNativePlaybackReady && window.onNativePlaybackReady()", null)
+                            when (playbackState) {
+                                Player.STATE_BUFFERING -> webView?.evaluateJavascript(
+                                    "window.onNativePlaybackBuffering && window.onNativePlaybackBuffering()", null)
+                                Player.STATE_READY -> webView?.evaluateJavascript(
+                                    "window.onNativePlaybackReady && window.onNativePlaybackReady()", null)
+                                Player.STATE_ENDED -> webView?.evaluateJavascript(
+                                    "window.onNativePlaybackEnded && window.onNativePlaybackEnded()", null)
                             }
                         }
+
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             nativePlayerPlaying = isPlaying
+                            webView?.evaluateJavascript(
+                                "window.onNativePlaybackStateChanged && window.onNativePlaybackStateChanged(" + isPlaying + ")", null)
                         }
+
                         override fun onPlayerError(error: PlaybackException) {
+                            val detail = buildString {
+                                append("خطأ المشغل: ")
+                                append(error.errorCodeName)
+                                error.message?.takeIf { it.isNotBlank() }?.let {
+                                    append(" — ")
+                                    append(it)
+                                }
+                                var cause = error.cause
+                                var depth = 0
+                                while (cause != null && depth < 3) {
+                                    cause.message?.takeIf { it.isNotBlank() }?.let {
+                                        append(" — ")
+                                        append(it)
+                                    }
+                                    cause = cause.cause
+                                    depth++
+                                }
+                            }
+                            android.util.Log.e("SONIXPlayback", detail, error)
                             stopNativePlayer()
-                            val message = JSONObject.quote("فشل تشغيل البث: " + (error.message ?: "خطأ غير معروف"))
-                            webView?.evaluateJavascript("window.onNativePlaybackError && window.onNativePlaybackError($message)", null)
+                            val message = JSONObject.quote(detail)
+                            webView?.evaluateJavascript(
+                                "window.onNativePlaybackError && window.onNativePlaybackError(" + message + ")", null)
                         }
                     })
-                    player.setMediaItem(MediaItem.fromUri(mediaUri))
+
+                    val extension = mediaUri.lastPathSegment
+                        ?.substringAfterLast('.', "")
+                        ?.lowercase()
+                        .orEmpty()
+                    val mimeType = when (extension) {
+                        "m3u8" -> MimeTypes.APPLICATION_M3U8
+                        "mpd" -> MimeTypes.APPLICATION_MPD
+                        else -> null
+                    }
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(mediaUri)
+                        .apply { if (mimeType != null) setMimeType(mimeType) }
+                        .build()
+                    player.setMediaItem(mediaItem)
                     player.prepare()
                     player.playWhenReady = true
                 } catch (error: Exception) {
                     stopNativePlayer()
                     val message = JSONObject.quote(error.message ?: "تعذر تشغيل البث")
-                    webView?.evaluateJavascript("window.onNativePlaybackError && window.onNativePlaybackError($message)", null)
+                    webView?.evaluateJavascript(
+                        "window.onNativePlaybackError && window.onNativePlaybackError(" + message + ")", null)
                 }
             }
         }
@@ -186,8 +251,13 @@ class MainActivity : ComponentActivity() {
         fun toggle() {
             runOnUiThread {
                 nativePlayer?.let {
-                    if (it.isPlaying) { it.pause(); secondaryAudioPlayer?.pause() }
-                    else { it.play(); if (externalAudioActive) secondaryAudioPlayer?.play() }
+                    if (it.isPlaying) {
+                        it.pause()
+                        secondaryAudioPlayer?.pause()
+                    } else {
+                        it.play()
+                        if (externalAudioActive) secondaryAudioPlayer?.play()
+                    }
                 }
             }
         }
@@ -199,10 +269,20 @@ class MainActivity : ComponentActivity() {
         fun isActive(): Boolean = nativePlayerActive
 
         @android.webkit.JavascriptInterface
-        fun pause() { runOnUiThread { nativePlayer?.pause() } }
+        fun pause() {
+            runOnUiThread {
+                nativePlayer?.pause()
+                if (externalAudioActive) secondaryAudioPlayer?.pause()
+            }
+        }
 
         @android.webkit.JavascriptInterface
-        fun resume() { runOnUiThread { nativePlayer?.play() } }
+        fun resume() {
+            runOnUiThread {
+                nativePlayer?.play()
+                if (externalAudioActive) secondaryAudioPlayer?.play()
+            }
+        }
 
         @android.webkit.JavascriptInterface
         fun setMuted(muted: Boolean) {
@@ -391,12 +471,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopNativePlayer() {
-        nativePlayerView?.let { rootContainer?.removeView(it) }
+        val player = nativePlayer
+        val textureView = nativePlayerView
+        if (player != null && textureView != null) {
+            try { player.clearVideoTextureView(textureView) } catch (_: Exception) { }
+        }
+        textureView?.let { rootContainer?.removeView(it) }
         nativePlayerView = null
-        nativePlayer?.release()
+        player?.release()
         nativePlayer = null
         nativePlayerActive = false
         nativePlayerPlaying = false
+        webView?.evaluateJavascript(
+            "window.onNativePlaybackStateChanged && window.onNativePlaybackStateChanged(false)", null)
     }
 
     class WebAppInterface(private val activity: MainActivity) {
@@ -486,6 +573,51 @@ class MainActivity : ComponentActivity() {
         webView = null
         super.onDestroy()
     }
+}
+
+
+/** Native equivalent of the SONIX screen gradients, visible behind the transparent WebView. */
+private class SonixBackgroundDrawable : Drawable() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    override fun draw(canvas: Canvas) {
+        val area = bounds
+        val width = area.width().toFloat().coerceAtLeast(1f)
+        val height = area.height().toFloat().coerceAtLeast(1f)
+        paint.shader = LinearGradient(
+            area.left.toFloat(), area.top.toFloat(), area.right.toFloat(), area.bottom.toFloat(),
+            Color.rgb(11, 17, 24), Color.rgb(26, 36, 48), Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(area, paint)
+        paint.shader = RadialGradient(
+            area.left + width * 0.85f, area.top + height * 0.15f,
+            maxOf(width, height) * 0.48f,
+            intArrayOf(Color.argb(46, 184, 115, 51), Color.TRANSPARENT),
+            floatArrayOf(0f, 1f), Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(area, paint)
+        paint.shader = RadialGradient(
+            area.left + width * 0.15f, area.top + height * 0.85f,
+            maxOf(width, height) * 0.48f,
+            intArrayOf(Color.argb(56, 31, 111, 107), Color.TRANSPARENT),
+            floatArrayOf(0f, 1f), Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(area, paint)
+        paint.shader = null
+    }
+
+    override fun setAlpha(alpha: Int) {
+        paint.alpha = alpha
+        invalidateSelf()
+    }
+
+    override fun setColorFilter(colorFilter: ColorFilter?) {
+        paint.colorFilter = colorFilter
+        invalidateSelf()
+    }
+
+    @Deprecated("Deprecated in Android")
+    override fun getOpacity(): Int = PixelFormat.OPAQUE
 }
 
 
