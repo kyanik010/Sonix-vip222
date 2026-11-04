@@ -502,6 +502,7 @@
     /* 4-COLUMN MAIN CONTENT (PROPORTIONS: 4% Sidebar, 22% Categories, 28% Channels/Items, 46% Player/Details) */
     .live-main-content {
       flex: 1;
+      min-height: 0;
       display: flex;
       overflow: hidden;
       width: 100%;
@@ -575,6 +576,7 @@
     /* Column 2: Categories Column (~22%) */
     .live-categories-col {
       width: clamp(190px, 22vw, 270px);
+      min-height: 0;
       background: #0E141B;
       border-left: 1px solid var(--border-panel);
       display: flex;
@@ -604,7 +606,7 @@
     }
     .categories-list {
       flex: 1;
-      height: 100%;
+      min-height: 0;
       overflow-y: auto !important;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
@@ -651,6 +653,7 @@
     /* Column 3: Items / Channels Column (~28%) */
     .live-channels-col {
       width: clamp(230px, 28vw, 360px);
+      min-height: 0;
       background: #111820;
       border-left: 1px solid var(--border-panel);
       display: flex;
@@ -682,7 +685,7 @@
     }
     .channels-list {
       flex: 1;
-      height: 100%;
+      min-height: 0;
       overflow-y: auto !important;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
@@ -758,6 +761,7 @@
     /* Column 4: Player / Details Column (~46%) */
     .live-player-col {
       flex: 1;
+      min-height: 0;
       background: #0A0F14;
       display: flex;
       flex-direction: column;
