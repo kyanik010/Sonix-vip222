@@ -712,6 +712,61 @@
       border-color: rgba(143, 184, 232, 0.35);
       color: var(--text-white);
     }
+
+    /* Movies and series only: responsive three-column poster grid. */
+    .channels-list.media-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: minmax(116px, auto);
+      align-content: start;
+      align-items: stretch;
+      overflow-y: auto !important;
+      overflow-x: hidden;
+    }
+    .channels-list.media-grid .channel-row {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      min-height: 116px;
+      height: auto;
+      flex-shrink: 1;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 6px;
+      text-align: center;
+    }
+    .channels-list.media-grid .channel-number {
+      display: none;
+    }
+    .channels-list.media-grid .channel-logo-box {
+      width: clamp(42px, 5vw, 64px);
+      height: clamp(42px, 5vw, 64px);
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    .channels-list.media-grid .channel-name {
+      display: -webkit-box;
+      flex: 0 1 auto;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      white-space: normal;
+      text-overflow: ellipsis;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-height: 1.35;
+      font-size: clamp(0.68rem, 0.9vw, 0.82rem);
+    }
+    .channels-list.media-grid .channel-fav-star {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      width: 14px;
+      height: 14px;
+    }
     .channel-number {
       font-size: 0.78rem;
       font-weight: 700;
@@ -2823,12 +2878,31 @@
           return;
         }
 
-        // 1. Direct sequential list navigation for scrollable lists (categories, channels, audio sources)
+        // 1. Sequential navigation for lists; media grids move vertically by one row.
         const currentListContainer = this.currentFocusedElement.closest('.categories-list, .channels-list, .audio-channel-picker, #global-search-results');
         if (currentListContainer && (direction === 'up' || direction === 'down')) {
           const listItems = Array.from(currentListContainer.querySelectorAll('.focusable:not([disabled])'));
           const idx = listItems.indexOf(this.currentFocusedElement);
-          if (idx !== -1) {
+          if (idx !== -1 && currentListContainer.classList.contains('media-grid')) {
+            const rowStep = 3;
+            if (direction === 'up' && idx >= rowStep) {
+              this.focusElement(listItems[idx - rowStep]);
+              return;
+            }
+            if (direction === 'down') {
+              if (listItems[idx + rowStep]) {
+                this.focusElement(listItems[idx + rowStep]);
+                return;
+              }
+              if (loadMoreChannelRows()) {
+                const expandedItems = Array.from(currentListContainer.querySelectorAll('.focusable:not([disabled])'));
+                if (expandedItems[idx + rowStep]) {
+                  this.focusElement(expandedItems[idx + rowStep]);
+                  return;
+                }
+              }
+            }
+          } else if (idx !== -1) {
             if (direction === 'down' && idx < listItems.length - 1) {
               this.focusElement(listItems[idx + 1]);
               return;
@@ -3261,6 +3335,8 @@
 
     function setAppMode(mode) {
       currentAppMode = mode;
+      const itemsContainer = document.getElementById('channels-list-container');
+      if (itemsContainer) itemsContainer.classList.toggle('media-grid', mode === 'movies' || mode === 'series');
       if (sonixSettings.rememberSection) {
         try { localStorage.setItem('sonix_last_mode_v1', mode); } catch (_) {}
       }
@@ -3385,6 +3461,7 @@
     function renderItems(filterText = '') {
       const container = document.getElementById('channels-list-container');
       if (!container) return;
+      container.classList.toggle('media-grid', currentAppMode === 'movies' || currentAppMode === 'series');
       channelRenderGeneration++;
       container.innerHTML = '';
       currentRenderedItems = [];
