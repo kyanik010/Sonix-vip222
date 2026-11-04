@@ -1567,9 +1567,9 @@
         <!-- Left: Now Playing Ticker -->
         <div class="now-playing-ticker">
           <span class="ticker-label">أنت تشاهد:</span>
-          <span id="ticker-cat" style="color:var(--text-silver);">beIN SPORTS HD</span>
+          <span id="ticker-cat" style="color:var(--text-silver);">—</span>
           <span class="ticker-sep">&gt;&gt;</span>
-          <span id="ticker-ch" class="ticker-channel">beIN SPORTS 1 HD</span>
+          <span id="ticker-ch" class="ticker-channel">—</span>
         </div>
       </div>
 
@@ -1633,8 +1633,8 @@
         <!-- 3. Items Column (~28%) -->
         <div class="live-channels-col">
           <div class="channels-header-badge">
-            <div id="channels-badge-name" class="channels-header-text">beIN SPORTS HD</div>
-            <div id="channels-badge-count" class="channels-count-tag">١٤ قناة</div>
+            <div id="channels-badge-name" class="channels-header-text">التصنيفات</div>
+            <div id="channels-badge-count" class="channels-count-tag">0 قناة</div>
           </div>
           <div id="channels-list-container" class="channels-list">
             <!-- Dynamically populated rows -->
@@ -1752,10 +1752,10 @@
                   <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
                 </svg>
               </button>
-              <span id="player-quality-label" style="font-weight:700; color:var(--focus-blue);">FHD 1080p 60fps</span>
+              <span id="player-quality-label" style="font-weight:700; color:var(--focus-blue);">جودة البث من الخادم</span>
             </div>
             <div class="quick-ctrl-group">
-              <span id="player-buffer-info" style="color:var(--text-muted); font-size:0.72rem;">HLS Live Stream</span>
+              <span id="player-buffer-info" style="color:var(--text-muted); font-size:0.72rem;">مصدر البث</span>
               <button id="ctrl-fullscreen-btn" class="ctrl-icon-btn focusable" title="ملء الشاشة">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
@@ -1856,7 +1856,7 @@
         <div class="modal-header">
           <div class="modal-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-            <span id="epg-modal-channel-name">دليل البرامج - beIN SPORTS 1 HD</span>
+            <span id="epg-modal-channel-name">دليل البرامج</span>
           </div>
           <button id="close-epg" class="modal-close-btn focusable">&times;</button>
         </div>
@@ -1864,18 +1864,18 @@
           <div class="epg-timeline-box">
             <div class="epg-card-curr">
               <span class="epg-badge-live">يُعرض الآن</span>
-              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG</div>
+              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG حتى يتم اختيار قناةdiv>
               <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">—</div>
               <div id="epg-curr-desc" class="epg-desc">لا تتوفر تفاصيل البرنامج من الخادم.</div>
               <div class="epg-progress-bar">
-                <div id="epg-progress-percent" class="epg-progress-fill" style="width:65%;"></div>
+                <div id="epg-progress-percent" class="epg-progress-fill" style="width:0%;"></div>
               </div>
             </div>
 
             <div style="background:#0A0F14; border:1px solid var(--border-panel); border-radius:12px; padding:12px 16px;">
               <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">البرنامج التالي:</div>
-              <div id="epg-next-title" style="font-size:0.95rem; font-weight:800; color:#fff; margin-top:2px;">حصاد الأهداف وملخص الجولة</div>
-              <div id="epg-next-time" style="font-size:0.78rem; color:var(--text-silver); margin-top:2px;">٢٣:١٥ - ٠٠:٣٠</div>
+              <div id="epg-next-title" style="font-size:0.95rem; font-weight:800; color:#fff; margin-top:2px;">لا تتوفر بيانات للبرنامج التالي</div>
+              <div id="epg-next-time" style="font-size:0.78rem; color:var(--text-silver); margin-top:2px;">—</div>
             </div>
           </div>
         </div>
@@ -2881,6 +2881,10 @@
       if (value && value.success === false) throw new Error(value.error || 'فشل طلب الخادم');
       return value;
     }
+    function isNetworkFailure(error) {
+      const message = String(error && error.message ? error.message : error || '');
+      return /تعذر العثور على خادم|انتهت مهلة الاتصال|تعذر الاتصال بخادم|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network|HTTP 5\\d\\d/i.test(message);
+    }
     function nativeArray(action) {
       const value = parseNative(window.XtreamBridge.load(action));
       if (!Array.isArray(value)) throw new Error('استجابة غير صالحة من الخادم: ' + action);
@@ -2973,8 +2977,7 @@
             activeCredentials={server:saved.server,username:saved.username};
           } catch (_) {}
         }
-        const networkFailure = /تعذر الاتصال|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(error.message || ''));
-        if(offlineFallback && networkFailure && activeCredentials && restoreXtreamCache()) {
+        if(offlineFallback && isNetworkFailure(error) && activeCredentials && restoreXtreamCache()) {
           isOfflineCache=true;
           updateAccount({username:activeCredentials.username});
           document.getElementById('sonix-login-screen').classList.add('hidden');
@@ -3018,17 +3021,21 @@
     function refreshXtreamContent() {
       try {
         if(!activeCredentials) throw new Error('سجّل الدخول أولاً');
+        const session=parseNative(window.XtreamBridge.restoreSession());
+        isOfflineCache=false;
+        updateAccount(session.user_info);
         loadXtreamContent();
         const status=document.getElementById('profile-server-status');
         if(status) status.textContent='تم التحقق من الاشتراك';
         showToast('تم تحديث المحتوى من خادم الاشتراك');
       } catch(error) {
-        const hasCache=!!(activeCredentials && restoreXtreamCache());
+        const hasCache=!!(activeCredentials && isNetworkFailure(error) && restoreXtreamCache());
         isOfflineCache=hasCache;
         const note=document.getElementById('cache-status'); if(note) note.style.display=hasCache?'block':'none';
-        const status=document.getElementById('profile-server-status'); if(status) status.textContent=hasCache?'تعذر التحديث — بيانات سابقة':'تعذر الاتصال بالخادم';
+        const status=document.getElementById('profile-server-status');
+        if(status) status.textContent=hasCache?'تعذر التحديث — بيانات سابقة':(isNetworkFailure(error)?'تعذر الاتصال بالخادم':'تعذر التحقق من الاشتراك');
         if (hasCache) { renderCategories(); renderItems(); renderAudioSourcePicker(); }
-        showToast('فشل التحديث: ' + (error.message || 'تعذر الاتصال')); 
+        showToast('فشل التحديث: ' + (error.message || 'تعذر الاتصال'));
       }
     }
 
@@ -3420,6 +3427,7 @@
       // 8. Player Actions
       document.getElementById('btn-open-epg').addEventListener('click', () => {
         if (currentAppMode === 'live') {
+          if (currentSelectedItem) loadLiveEpg(currentSelectedItem);
           openModal('modal-epg');
         } else {
           showToast(`جارٍ تشغيل ${currentSelectedItem ? currentSelectedItem.name : ''}...`);
@@ -3471,8 +3479,7 @@
           loadXtreamContent();
           document.getElementById('sonix-login-screen').classList.add('hidden');
         } catch (restoreError) {
-          const networkFailure=/unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(restoreError.message || ''));
-          if(networkFailure && restoreXtreamCache()) {
+          if(isNetworkFailure(restoreError) && restoreXtreamCache()) {
             isOfflineCache=true;
             updateAccount({username:saved.username});
             document.getElementById('sonix-login-screen').classList.add('hidden');
