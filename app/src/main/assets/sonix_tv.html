@@ -2921,10 +2921,14 @@
         category:x.category_id == null ? '' : 'series-' + x.category_id,categoryName:categoryName(sc,'series-',x.category_id),
         logo:x.cover || '',logoText:'',streamUrl:'',rating:x.rating || '',desc:x.plot || ''}));
       const safeCopy = rows => rows.map(item => ({...item, streamUrl:'', audioOnlyUrl:''}));
-      localStorage.setItem('sonix_provider_cache_v1',JSON.stringify({
-        liveCategories,liveChannels:safeCopy(liveChannels),movieCategories,movies:safeCopy(movies),
-        seriesCategories,series:safeCopy(series)
-      }));
+      try {
+        localStorage.setItem('sonix_provider_cache_v1',JSON.stringify({
+          liveCategories,liveChannels:safeCopy(liveChannels),movieCategories,movies:safeCopy(movies),
+          seriesCategories,series:safeCopy(series)
+        }));
+      } catch (cacheError) {
+        console.warn('Unable to persist provider cache; continuing with live content', cacheError);
+      }
       isOfflineCache = false;
       const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display='none';
       renderCategories(); renderItems(); renderAudioSourcePicker();
