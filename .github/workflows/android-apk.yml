@@ -1,4 +1,4 @@
-name: Build SONIX TV APK
+name: Build SONIX TV APK - Xtream integration
 
 on:
   workflow_dispatch:
