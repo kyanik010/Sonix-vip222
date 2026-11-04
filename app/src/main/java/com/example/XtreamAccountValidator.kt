@@ -29,7 +29,7 @@ object XtreamAccountValidator {
         }
         if (expiration.isNotBlank() && expiration != "null" && expiration != "0") {
             val expirySeconds = expiration.toLongOrNull()
-            if (expirySeconds != null && expirySeconds > 0 && expirySeconds * 1000L <= nowMillis) {
+            if (expirySeconds != null && expirySeconds > 0 && expirySeconds <= nowMillis / 1000L) {
                 throw IllegalArgumentException("انتهت صلاحية الاشتراك")
             }
         }

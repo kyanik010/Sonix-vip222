@@ -6,10 +6,12 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.webkit.JavascriptInterface
-import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.net.ConnectException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.net.URL
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -188,17 +190,27 @@ class XtreamBridge(context: Context) {
         require((uri.scheme == "http" || uri.scheme == "https") && !uri.host.isNullOrBlank()) {
             "أدخل عنوان خادم صحيحاً يبدأ بـ http:// أو https://"
         }
+        require(uri.userInfo.isNullOrBlank()) { "لا تضع اسم المستخدم أو كلمة المرور داخل عنوان الخادم" }
         require(uri.query.isNullOrBlank() && uri.fragment.isNullOrBlank()) {
             "أدخل عنوان الخادم فقط دون معاملات إضافية"
         }
+        require(uri.port == -1 || uri.port in 1..65535) { "منفذ الخادم غير صالح" }
         return trimmed
     }
 
-    private fun errorResult(error: Exception): String =
-        JSONObject()
+    private fun errorResult(error: Exception): String {
+        val message = when (error) {
+            is UnknownHostException -> "تعذر العثور على خادم الاشتراك. تحقق من عنوان السيرفر والإنترنت."
+            is SocketTimeoutException -> "انتهت مهلة الاتصال بخادم الاشتراك. حاول مرة أخرى."
+            is ConnectException -> "تعذر الاتصال بخادم الاشتراك. تحقق من عنوان السيرفر والمنفذ."
+            is JSONException -> "أعاد الخادم بيانات غير مفهومة؛ تأكد من توافقه مع Xtream Codes API."
+            else -> error.message?.takeIf { it.isNotBlank() } ?: "تعذر الاتصال بالخادم."
+        }
+        return JSONObject()
             .put("success", false)
-            .put("error", error.message ?: "تعذر الاتصال بالخادم")
+            .put("error", message)
             .toString()
+    }
 }
 
 /** Small encrypted credential vault backed by an AES key held by Android Keystore. */
