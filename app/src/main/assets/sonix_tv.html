@@ -2600,6 +2600,12 @@
             } else if (direction === 'up' && idx > 0) {
               this.focusElement(listItems[idx - 1]);
               return;
+            } else if (direction === 'down' && currentListContainer.classList.contains('channels-list')) {
+              if (loadMoreChannelRows()) {
+                const expandedItems = Array.from(currentListContainer.querySelectorAll('.focusable:not([disabled])'));
+                if (expandedItems[idx + 1]) this.focusElement(expandedItems[idx + 1]);
+                return;
+              }
             }
           }
         }
@@ -2811,7 +2817,8 @@
       const lc = makeCategories(nativeArray('get_live_categories'),'live-');
       const mc = makeCategories(nativeArray('get_vod_categories'),'movie-');
       const sc = makeCategories(nativeArray('get_series_categories'),'series-');
-      const categoryName = (list,prefix,id) => (list.find(x => x.id === prefix + String(id)) || {}).name || '';
+      const categoryName = (list,prefix,id) => (list._nameById && list._nameById.get(String(id))) || '';
+      [lc,mc,sc].forEach(list => { list._nameById = new Map(list.map(item => [item.providerId, item.name])); });
       const rawLive = nativeArray('get_live_streams');
       const rawMovies = nativeArray('get_vod_streams');
       const rawSeries = nativeArray('get_series');
@@ -2961,6 +2968,59 @@
      */
     let currentActiveCategory = '';
     let currentSelectedItem = null;
+    let currentRenderedItems = [];
+    let currentRenderedCount = 0;
+    let channelRenderGeneration = 0;
+    const CHANNEL_RENDER_BATCH_SIZE = 80;
+
+    function appendChannelRows() {
+      const container = document.getElementById('channels-list-container');
+      if (!container || currentRenderedCount >= currentRenderedItems.length) return;
+      const end = Math.min(currentRenderedCount + CHANNEL_RENDER_BATCH_SIZE, currentRenderedItems.length);
+      const fragment = document.createDocumentFragment();
+      for (let index = currentRenderedCount; index < end; index++) {
+        const it = currentRenderedItems[index];
+        const row = document.createElement('div');
+        const isSelected = currentSelectedItem && currentSelectedItem.id === it.id;
+        const isFav = isFavorite(it.id);
+        row.className = `channel-row focusable ${isSelected ? 'selected' : ''}`;
+        row.tabIndex = 0;
+        row.dataset.itemId = it.id;
+        row.innerHTML = `
+          <span class="channel-number"></span>
+          <div class="channel-logo-box"></div>
+          <span class="channel-name"></span>
+          <svg class="channel-fav-star ${isFav ? 'active' : ''}" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>`;
+        let lastRowTap = 0;
+        row.addEventListener('click', () => selectItem(it));
+        row.addEventListener('dblclick', event => {
+          event.preventDefault(); selectItem(it);
+          if (videoPlaybackController && !videoPlaybackController.isFullscreen) videoPlaybackController.toggleFullscreen();
+        });
+        row.addEventListener('touchend', event => {
+          const now = Date.now();
+          if (now - lastRowTap < 350 && now - lastRowTap > 40) {
+            event.preventDefault(); selectItem(it);
+            if (videoPlaybackController && !videoPlaybackController.isFullscreen) videoPlaybackController.toggleFullscreen();
+          }
+          lastRowTap = now;
+        });
+        row.querySelector('.channel-number').textContent = String(it.number || '');
+        row.querySelector('.channel-name').textContent = it.name || '';
+        setProviderImage(row.querySelector('.channel-logo-box'), it.logo, it.name, it.logoText || '');
+        fragment.appendChild(row);
+      }
+      currentRenderedCount = end;
+      container.appendChild(fragment);
+    }
+
+    function loadMoreChannelRows() {
+      const before = currentRenderedCount;
+      appendChannelRows();
+      return currentRenderedCount > before;
+    }
 
     function setAppMode(mode) {
       currentAppMode = mode;
@@ -3019,6 +3079,12 @@
 
       const categories = getActiveCategoryList();
       const allItems = getActiveItemList();
+      const categoryCounts = new Map();
+      let favoritesCount = 0;
+      allItems.forEach(entry => {
+        if (entry.category) categoryCounts.set(entry.category, (categoryCounts.get(entry.category) || 0) + 1);
+        if (isFavorite(entry.id)) favoritesCount++;
+      });
 
       categories.forEach(cat => {
         const item = document.createElement('div');
@@ -3026,11 +3092,9 @@
         item.tabIndex = 0;
         item.dataset.catId = cat.id;
 
-        const count = cat.id === 'all'
-          ? allItems.length
-          : cat.id === 'favorites'
-            ? allItems.filter(entry => isFavorite(entry.id)).length
-            : allItems.filter(entry => entry.category === cat.id).length;
+        const count = cat.id === 'all' ? allItems.length
+          : cat.id === 'favorites' ? favoritesCount
+          : (categoryCounts.get(cat.id) || 0);
         const name = document.createElement('span');
         name.textContent = cat.name || 'تصنيف';
         const badge = document.createElement('span');
@@ -3064,81 +3128,40 @@
     function renderItems(filterText = '') {
       const container = document.getElementById('channels-list-container');
       if (!container) return;
+      channelRenderGeneration++;
       container.innerHTML = '';
-
+      currentRenderedItems = [];
+      currentRenderedCount = 0;
       const allItems = getActiveItemList();
-      let items = [];
-
-      if (currentActiveCategory === 'all') {
-        items = allItems.slice();
-      } else if (currentActiveCategory === 'favorites') {
-        items = allItems.filter(c => isFavorite(c.id));
-      } else {
-        items = allItems.filter(c => c.category === currentActiveCategory);
-      }
-
-      if (filterText) {
-        items = items.filter(c => c.name.toLowerCase().includes(filterText.toLowerCase()));
-      }
-
+      const normalizedFilter = String(filterText || '').trim().toLowerCase();
+      let items;
+      if (currentActiveCategory === 'all') items = allItems;
+      else if (currentActiveCategory === 'favorites') items = allItems.filter(item => isFavorite(item.id));
+      else items = allItems.filter(item => item.category === currentActiveCategory);
+      if (normalizedFilter) items = items.filter(item => String(item.name || '').toLowerCase().includes(normalizedFilter));
       const countSuffix = currentAppMode === 'movies' ? 'فيلم' : (currentAppMode === 'series' ? 'مسلسل' : 'قناة');
       document.getElementById('channels-badge-count').textContent = `${items.length} ${countSuffix}`;
-
-      if (items.length === 0) {
+      if (!items.length) {
         container.innerHTML = `<div style="color:var(--text-muted); text-align:center; padding:24px; font-size:0.85rem;">لا توجد عناصر متاحة في هذا التصنيف</div>`;
         return;
       }
-
-      items.forEach(it => {
-        const row = document.createElement('div');
-        const isSelected = currentSelectedItem && currentSelectedItem.id === it.id;
-        const isFav = isFavorite(it.id);
-
-        row.className = `channel-row focusable ${isSelected ? 'selected' : ''}`;
-        row.tabIndex = 0;
-        row.dataset.itemId = it.id;
-
-        row.innerHTML = `
-          <span class="channel-number"></span>
-          <div class="channel-logo-box"></div>
-          <span class="channel-name"></span>
-          <svg class="channel-fav-star ${isFav ? 'active' : ''}" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-          </svg>
-        `;
-
-        let lastRowTap = 0;
-        row.addEventListener('click', () => {
-          selectItem(it);
-        });
-
-        // Double-click to play and expand to full screen immediately
-        row.addEventListener('dblclick', (e) => {
-          e.preventDefault();
-          selectItem(it);
-          if (videoPlaybackController && !videoPlaybackController.isFullscreen) {
-            videoPlaybackController.toggleFullscreen();
-          }
-        });
-
-        // Double-tap on touch screens
-        row.addEventListener('touchend', (e) => {
-          const now = Date.now();
-          if (now - lastRowTap < 350 && now - lastRowTap > 40) {
-            e.preventDefault();
-            selectItem(it);
-            if (videoPlaybackController && !videoPlaybackController.isFullscreen) {
-              videoPlaybackController.toggleFullscreen();
-            }
-          }
-          lastRowTap = now;
-        });
-
-        row.querySelector('.channel-number').textContent = String(it.number || '');
-        row.querySelector('.channel-name').textContent = it.name || '';
-        setProviderImage(row.querySelector('.channel-logo-box'), it.logo, it.name, it.logoText || '');
-        container.appendChild(row);
-      });
+      currentRenderedItems = items;
+      if (!container.dataset.incrementalScrollBound) {
+        container.addEventListener('scroll', () => {
+          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 420) loadMoreChannelRows();
+        }, { passive: true });
+        container.dataset.incrementalScrollBound = 'true';
+      }
+      const generation = channelRenderGeneration;
+      const renderNextBatch = () => {
+        if (generation !== channelRenderGeneration) return;
+        appendChannelRows();
+        if (currentRenderedCount < currentRenderedItems.length) {
+          if ('requestAnimationFrame' in window) requestAnimationFrame(renderNextBatch);
+          else setTimeout(renderNextBatch, 16);
+        }
+      };
+      renderNextBatch();
     }
 
     function loadLiveEpg(item) {
