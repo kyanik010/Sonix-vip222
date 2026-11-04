@@ -1,0 +1,66 @@
+name: Build SONIX TV APK
+
+on:
+  push:
+    branches:
+      - fix/sonix-tv-scrolling
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36.1" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.3.1'
+          cache-provider: basic
+
+      - name: Verify Java and Gradle
+        run: |
+          java -version
+          gradle --version
+
+      - name: Build APK with assembleDebug
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Verify generated APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK_PATH"
+          echo "APK_PATH=$APK_PATH"
+          ls -lh "$APK_PATH"
+          sha256sum "$APK_PATH"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SONIX-TV-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
