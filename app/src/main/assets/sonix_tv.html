@@ -2833,10 +2833,9 @@
       return rows.map(row => ({id:prefix + String(row.category_id), providerId:String(row.category_id), name:row.category_name || 'تصنيف'}));
     }
     function makeStreamUrl(type, id, item) {
-      if (!activeCredentials) return '';
+      if (!activeCredentials || !window.XtreamBridge) return '';
       const ext = (item.container_extension || (type === 'live' ? 'ts' : 'mp4')).replace(/^\./,'');
-      return activeCredentials.server + '/' + type + '/' + encodeURIComponent(activeCredentials.username) + '/' +
-        encodeURIComponent(activeCredentials.password) + '/' + encodeURIComponent(String(id)) + '.' + ext;
+      return parseNative(window.XtreamBridge.streamUrl(type,String(id),ext)).url;
     }
     function loadXtreamContent() {
       const lc = makeCategories(nativeArray('get_live_categories'),'live-');
@@ -2904,7 +2903,7 @@
       button.disabled=true;button.textContent='جارٍ التحقق من الاشتراك...';setLoginMessage('');
       try {
         const result=parseNative(window.XtreamBridge.login(server,username,password));
-        activeCredentials={server:server.trim().replace(/\/$/,''),username,password};
+        activeCredentials={username:result.user_info.username || username};
         isOfflineCache=false;
         updateAccount(result.user_info);
         loadXtreamContent();
@@ -2914,7 +2913,7 @@
         if (offlineFallback) {
           try {
             const saved=parseNative(window.XtreamBridge.savedCredentials());
-            activeCredentials={server:saved.server,username:saved.username,password:saved.password};
+            activeCredentials={username:saved.username};
           } catch (_) {}
         }
         const networkFailure = /تعذر الاتصال|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(error.message || ''));
@@ -2948,8 +2947,7 @@
             button.textContent='الحلقة ' + (ep.episode_num || '') + ' - ' + (ep.title || ep.id);
             button.addEventListener('click',()=>{
               const ext=ep.container_extension || 'mp4';
-              const url=activeCredentials.server + '/series/' + encodeURIComponent(activeCredentials.username) + '/' +
-                encodeURIComponent(activeCredentials.password) + '/' + encodeURIComponent(String(ep.id)) + '.' + ext;
+              const url=parseNative(window.XtreamBridge.streamUrl('series',String(ep.id),ext)).url;
               closeAllModals();
               selectItem({...item,seriesId:null,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
             });
@@ -3372,14 +3370,33 @@
 
       try {
         const saved=parseNative(window.XtreamBridge.savedCredentials());
-        if(saved.success) {
-          document.getElementById('login-server').value=saved.server;
-          document.getElementById('login-username').value=saved.username;
-          performXtreamLogin(saved.server,saved.username,saved.password,true);
-        } else {
-          document.getElementById('sonix-login-screen').classList.remove('hidden');
+        document.getElementById('login-server').value=saved.server || '';
+        document.getElementById('login-username').value=saved.username || '';
+        activeCredentials={username:saved.username};
+        try {
+          const restored=parseNative(window.XtreamBridge.restoreSession());
+          isOfflineCache=false;
+          updateAccount(restored.user_info);
+          loadXtreamContent();
+          document.getElementById('sonix-login-screen').classList.add('hidden');
+        } catch (restoreError) {
+          const networkFailure=/unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(restoreError.message || ''));
+          if(networkFailure && restoreXtreamCache()) {
+            isOfflineCache=true;
+            updateAccount({username:saved.username});
+            document.getElementById('sonix-login-screen').classList.add('hidden');
+            renderCategories();renderItems();renderAudioSourcePicker();
+            showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
+          } else {
+            activeCredentials=null;
+            document.getElementById('sonix-login-screen').classList.remove('hidden');
+            setLoginMessage(restoreError.message || 'تعذر استعادة الاشتراك');
+          }
         }
-      } catch (_) { document.getElementById('sonix-login-screen').classList.remove('hidden'); }
+      } catch (_) {
+        activeCredentials=null;
+        document.getElementById('sonix-login-screen').classList.remove('hidden');
+      }
 
       // 10. Search Filters
       document.getElementById('cat-filter-input').addEventListener('input', (e) => {
