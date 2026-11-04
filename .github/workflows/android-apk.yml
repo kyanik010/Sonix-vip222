@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/sonix-tv-scrolling
+      - fix/android-tv-stability
   workflow_dispatch:
 
 permissions:
