@@ -2307,9 +2307,15 @@
       }
 
       togglePlayPause() {
-        if (window.NativePlayback && window.NativePlayback.isActive()) { window.NativePlayback.toggle(); showToast('تم تبديل حالة التشغيل'); return; }
-        if (this.videoEl.paused) { this.videoEl.play(); if (dualAudioEngine) dualAudioEngine.resume(); showToast('تم استئناف البث'); }
-        else { this.videoEl.pause(); if (dualAudioEngine) dualAudioEngine.pause(); showToast('تم الإيقاف المؤقت'); }
+        if (this.videoEl.paused) {
+          this.videoEl.play();
+          if (dualAudioEngine) dualAudioEngine.resume();
+          showToast('تم استئناف البث');
+        } else {
+          this.videoEl.pause();
+          if (dualAudioEngine) dualAudioEngine.pause();
+          showToast('تم الإيقاف المؤقت');
+        }
       }
 
       toggleMute() {
@@ -2318,13 +2324,11 @@
           return;
         }
         this.videoEl.muted = !this.videoEl.muted;
-        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(this.videoEl.muted);
         showToast(this.videoEl.muted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
       }
 
       pause() {
         if (this.videoEl && !this.videoEl.paused) this.videoEl.pause();
-        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.pause();
         if (dualAudioEngine) dualAudioEngine.pause();
       }
 
@@ -2451,7 +2455,6 @@
         if (notifyNative && window.NativePlayback) window.NativePlayback.detachExternalAudio();
         this.isActive = false;
         this.videoController.videoEl.muted = this.originalVideoMuted;
-        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(this.originalVideoMuted);
         this.originalVideoMuted = false; this.delayMs = 0; this.updateDelayLabel();
         this.activeBadgeEl.classList.remove('visible'); this.btnExtAudio.classList.remove('is-active'); this.btnExtAudioText.textContent = 'الصوت الخارجي'; this.setStatus('stopped', 'متوقف');
         if (showMessage) showToast('تم إيقاف الصوت الخارجي واستعادة صوت القناة الأساسية');
