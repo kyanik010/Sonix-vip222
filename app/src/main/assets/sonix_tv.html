@@ -2966,9 +2966,10 @@
         loadXtreamContent();
         showToast('تم تحديث المحتوى من خادم الاشتراك');
       } catch(error) {
-        isOfflineCache=true;
-        const note=document.getElementById('cache-status'); if(note) note.style.display='block';
-        const status=document.getElementById('profile-server-status'); if(status) status.textContent='تعذر التحديث — بيانات سابقة';
+        const hasCache=activeCredentials && restoreXtreamCache();
+        isOfflineCache=!!hasCache;
+        const note=document.getElementById('cache-status'); if(note) note.style.display=hasCache?'block':'none';
+        const status=document.getElementById('profile-server-status'); if(status) status.textContent=hasCache?'تعذر التحديث — بيانات سابقة':'تعذر الاتصال بالخادم';
         showToast('فشل التحديث: ' + (error.message || 'تعذر الاتصال')); 
       }
     }
