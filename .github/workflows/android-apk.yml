@@ -65,6 +65,26 @@ jobs:
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
 
+      - name: Validate WebView JavaScript and remove demo data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("app/src/main/assets/sonix_tv.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S)
+          inline_scripts = [item for item in scripts if item.strip()]
+          if not inline_scripts:
+              raise SystemExit("No inline application script found")
+          Path("/tmp/sonix-tv-inline.js").write_text("\\n".join(inline_scripts), encoding="utf-8")
+          PY
+          node --check /tmp/sonix-tv-inline.js
+          if grep -En "MOCK_|BigBuckBunny|TearsOfSteel|ForBigger|test-streams|example\\.com|محمد الأحمد|386683283365|VIP ULTRA|24ms" app/src/main/assets/sonix_tv.html; then
+            echo "Demo data or sample playback URL remains in the user app"
+            exit 1
+          fi
+
       - name: Build APK with assembleDebug
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
