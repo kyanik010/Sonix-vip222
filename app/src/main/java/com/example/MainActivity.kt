@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 addJavascriptInterface(WebAppInterface(this@MainActivity), "AndroidBridge")
+                addJavascriptInterface(XtreamBridge(this@MainActivity), "XtreamBridge")
             }
 
             webView = wv
