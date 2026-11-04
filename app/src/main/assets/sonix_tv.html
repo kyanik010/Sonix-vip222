@@ -2951,7 +2951,7 @@
               const url=activeCredentials.server + '/series/' + encodeURIComponent(activeCredentials.username) + '/' +
                 encodeURIComponent(activeCredentials.password) + '/' + encodeURIComponent(String(ep.id)) + '.' + ext;
               closeAllModals();
-              selectItem({...item,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
+              selectItem({...item,seriesId:null,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
             });
             list.appendChild(button);
           });
