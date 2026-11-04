@@ -495,7 +495,7 @@
       color: var(--text-white);
     }
 
-    /* 4-COLUMN MAIN CONTENT (PROPORTIONS: 4% Sidebar, 22% Categories, 28% Channels/Items, 46% Player/Details) */
+    /* Four-column layout: compact player/details, expanded item list. */
     .live-main-content {
       flex: 1;
       min-height: 0;
@@ -648,14 +648,14 @@
 
     /* Column 3: Items / Channels Column (~28%) */
     .live-channels-col {
-      width: clamp(230px, 28vw, 360px);
+      flex: 1 1 0;
+      min-width: 340px;
       min-height: 0;
       background: #111820;
       border-left: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      flex-shrink: 0;
     }
     .channels-header-badge {
       padding: 10px 14px;
@@ -756,14 +756,17 @@
 
     /* Column 4: Player / Details Column (~46%) */
     .live-player-col {
-      flex: 1;
+      flex: 0 0 clamp(300px, 31vw, 390px);
+      width: clamp(300px, 31vw, 390px);
+      min-width: 300px;
       min-height: 0;
       background: transparent;
       display: flex;
       flex-direction: column;
-      padding: clamp(10px, 1.5vh, 16px) clamp(12px, 1.5vw, 20px);
-      gap: clamp(8px, 1.2vh, 12px);
+      padding: clamp(8px, 1.1vh, 12px) clamp(8px, 1vw, 14px);
+      gap: clamp(7px, 1vh, 10px);
       overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .video-viewport {
@@ -964,6 +967,69 @@
       justify-content: space-between;
       width: 100%;
       padding: 2px 4px;
+    }
+    .player-preview-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+    .player-preview-actions .action-btn {
+      min-width: 0;
+      height: 42px;
+    }
+    .player-playback-controls {
+      display: none;
+      width: 100%;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+      align-items: stretch;
+    }
+    .live-player-col.has-active-playback .player-preview-actions { display: none; }
+    .live-player-col.has-active-playback .player-playback-controls { display: grid; }
+    .playback-control-btn {
+      min-width: 0;
+      min-height: 42px;
+      padding: 5px 6px;
+      border: 1px solid var(--border-panel);
+      border-radius: 10px;
+      background: #111820;
+      color: var(--text-silver);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font: 700 clamp(0.68rem, .82vw, .8rem) var(--font-family);
+      white-space: nowrap;
+    }
+    .playback-control-btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .playback-control-btn.is-active { color: var(--accent-gold); border-color: var(--accent-gold); }
+    .player-quality-menu {
+      display: none;
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 7px;
+      border: 1px solid var(--border-panel);
+      border-radius: 10px;
+      background: #0A0F14;
+    }
+    .player-quality-menu.open { display: grid; }
+    .live-player-col.is-live-mode #ctrl-seek-back,
+    .live-player-col.is-live-mode #ctrl-seek-forward { display: none; }
+    .player-quality-option {
+      min-height: 36px;
+      border: 1px solid var(--border-panel);
+      border-radius: 8px;
+      background: #1C2A38;
+      color: var(--text-silver);
+      font: 700 .78rem var(--font-family);
+    }
+    .player-quality-option[aria-pressed="true"] { color: var(--accent-gold); border-color: var(--accent-gold); }
+    @media (max-width: 900px) {
+      .live-player-col { flex-basis: 290px; width: 290px; min-width: 290px; }
+      .live-channels-col { min-width: 280px; }
+      .live-categories-col { width: 180px; }
     }
     .player-channel-title {
       font-size: clamp(1.1rem, 1.6vw, 1.35rem);
@@ -1676,80 +1742,54 @@
             </div>
           </div>
 
-          <!-- Channel / Content Info Row -->
-          <div class="player-info-row">
-            <div id="player-ch-name" class="player-channel-title">—</div>
-            <button id="player-heart-btn" class="player-fav-btn focusable" title="إضافة للمفضلة">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Metadata Box for VOD (Movies / Series) -->
-          <div id="player-vod-meta-box" class="vod-meta-box" style="display:none;">
-            <div class="vod-meta-row">
-              <span id="vod-rating-tag" class="vod-rating-pill">—</span>
-              <span id="vod-specs-tag" style="color:var(--focus-blue); font-weight:700;">—</span>
-              <span id="vod-cat-tag" style="color:var(--text-silver);">—</span>
-            </div>
-            <div id="vod-desc-text" class="vod-synopsis">لا يتوفر وصف لهذا المحتوى.</div>
-          </div>
-
-          <!-- Action Buttons: EPG / Play Movie + Favorites + Dual Audio -->
-          <div class="player-actions-row">
-            <!-- 1. Primary Action (EPG for Live, or Full Play for VOD) -->
-            <button id="btn-open-epg" class="action-btn focusable" title="دليل البرامج">
-              <svg id="primary-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M12 7v5l3 3"/>
-              </svg>
-              <span id="primary-action-label">دليل البرامج</span>
-            </button>
-
-            <!-- 2. Favorite Toggle -->
-            <button id="btn-toggle-fav" class="action-btn focusable" title="المفضلة">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
+          <!-- Preview mode: keep only the existing preview and these two actions below it. -->
+          <div class="player-preview-actions">
+            <button id="btn-toggle-fav" class="action-btn focusable" title="إضافة للمفضلة">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
               <span id="fav-btn-label">إضافة للمفضلة</span>
             </button>
-
-            <!-- 3. Dual Audio System Button -->
-            <button id="btn-open-ext-audio" class="action-btn btn-ext-audio focusable" title="نظام الصوت الخارجي">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-              </svg>
-              <span id="ext-audio-btn-text">الصوت الخارجي</span>
+            <button id="btn-open-epg" class="action-btn focusable" title="دليل البرامج">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              <span>دليل البرامج</span>
             </button>
           </div>
 
-          <!-- Quick Controls: Play/Pause, Mute, Fullscreen, Stream Info -->
-          <div class="player-quick-controls">
-            <div class="quick-ctrl-group">
-              <button id="ctrl-play-pause" class="ctrl-icon-btn focusable" title="تشغيل/إيقاف مؤقت">
-                <svg id="icon-play-state" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="5,3 19,12 5,21" fill="currentColor"/>
-                </svg>
-              </button>
-              <button id="ctrl-mute-btn" class="ctrl-icon-btn focusable" title="كتم الصوت">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor"/>
-                  <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
-                </svg>
-              </button>
-              <span id="player-quality-label" style="font-weight:700; color:var(--focus-blue);">جودة البث من الخادم</span>
-            </div>
-            <div class="quick-ctrl-group">
-              <span id="player-buffer-info" style="color:var(--text-muted); font-size:0.72rem;">مصدر البث</span>
-              <button id="ctrl-fullscreen-btn" class="ctrl-icon-btn focusable" title="ملء الشاشة">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                </svg>
-              </button>
+          <!-- Playback-only controls: shown after the native player is ready. -->
+          <div class="player-playback-controls" id="player-playback-controls">
+            <button id="btn-playback-fav" class="playback-control-btn focusable" title="إضافة للمفضلة">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span>المفضلة</span>
+            </button>
+            <button id="btn-open-ext-audio" class="playback-control-btn focusable" title="مصدر الصوت">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 010 6"/></svg>
+              <span id="ext-audio-btn-text">مصدر الصوت</span>
+            </button>
+            <button id="ctrl-mute-btn" class="playback-control-btn focusable" title="كتم الصوت">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9l5 6m0-6l-5 6"/></svg>
+              <span id="mute-label">كتم الصوت</span>
+            </button>
+            <button id="ctrl-seek-back" class="playback-control-btn focusable" title="إرجاع 10 ثوانٍ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 109-9 9.5 9.5 0 00-6 2.3L3 8"/><path d="M3 3v5h5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
+              <span>رجوع 10</span>
+            </button>
+            <button id="ctrl-seek-forward" class="playback-control-btn focusable" title="تقديم 10 ثوانٍ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12A9 9 0 1112 3a9.5 9.5 0 016 2.3L21 8"/><path d="M21 3v5h-5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
+              <span>تقديم 10</span>
+            </button>
+            <button id="btn-toggle-subtitles" class="playback-control-btn focusable" title="الترجمة" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 10h4m-4 4h3m4-4h3m-3 4h3"/></svg>
+              <span id="subtitle-label">الترجمة</span>
+            </button>
+            <button id="btn-quality" class="playback-control-btn focusable" title="الجودة" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>
+              <span id="quality-label">الجودة</span>
+            </button>
+            <div class="player-quality-menu" id="player-quality-menu">
+              <button class="player-quality-option focusable" data-quality="1080" aria-pressed="false">1080p</button>
+              <button class="player-quality-option focusable" data-quality="720" aria-pressed="true">720p</button>
+              <button class="player-quality-option focusable" data-quality="480" aria-pressed="false">480p</button>
             </div>
           </div>
-
         </div>
 
       </div>
@@ -2122,6 +2162,7 @@
         this.maxRetries = 3;
         this.isFullscreen = false;
         this.isMuted = false;
+        this.subtitlesEnabled = true;
         this.bindEvents();
       }
 
@@ -2129,9 +2170,24 @@
         document.getElementById('player-retry-action').addEventListener('click', () => {
           if (this.currentItem) this.loadItem(this.currentItem);
         });
-        document.getElementById('ctrl-play-pause').addEventListener('click', () => this.togglePlayPause());
-        document.getElementById('ctrl-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('ctrl-mute-btn').addEventListener('click', () => this.toggleMute());
+        document.getElementById('ctrl-seek-back').addEventListener('click', () => this.seekBy(-10000));
+        document.getElementById('ctrl-seek-forward').addEventListener('click', () => this.seekBy(10000));
+        document.getElementById('btn-toggle-subtitles').addEventListener('click', () => this.toggleSubtitles());
+        document.getElementById('btn-quality').addEventListener('click', () => this.toggleQualityMenu());
+        document.querySelectorAll('.player-quality-option').forEach(option => option.addEventListener('click', () => {
+          const quality=Number(option.dataset.quality);
+          if (window.NativePlayback && window.NativePlayback.setVideoQuality) {
+            window.NativePlayback.setVideoQuality(quality);
+            document.querySelectorAll('.player-quality-option').forEach(el => el.setAttribute('aria-pressed', String(el===option)));
+            document.getElementById('quality-label').textContent=option.textContent;
+            document.getElementById('player-quality-menu').classList.remove('open');
+            document.getElementById('btn-quality').setAttribute('aria-expanded','false');
+          }
+        }));
+        document.getElementById('btn-playback-fav').addEventListener('click', () => {
+          if (this.currentItem) toggleFavorite(this.currentItem.id);
+        });
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (exitBtn) exitBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2165,6 +2221,7 @@
           dualAudioEngine.stopExternalAudio(false);
         }
         this.currentItem = item;
+        const playerPanel=document.querySelector('.live-player-col'); if(playerPanel) playerPanel.classList.remove('has-active-playback');
         this.retryAttempts = 0;
         this.errorEl.classList.remove('active');
         this.showLoader('جارٍ الاتصال بـ ' + (item.name || 'المحتوى') + '...');
@@ -2220,12 +2277,12 @@
       updatePlaybackState(isPlaying) {
         const icon = document.getElementById('icon-play-state');
         const button = document.getElementById('ctrl-play-pause');
-        if (icon) {
+        if (icon && button) {
           icon.innerHTML = isPlaying
             ? '<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>'
             : '<polygon points="5,3 19,12 5,21" fill="currentColor"/>';
+          button.title = isPlaying ? 'إيقاف مؤقت' : 'تشغيل';
         }
-        if (button) button.title = isPlaying ? 'إيقاف مؤقت' : 'تشغيل';
       }
 
       togglePlayPause() {
@@ -2238,12 +2295,44 @@
 
       toggleMute() {
         if (dualAudioEngine && dualAudioEngine.isActive) {
-          showToast('صوت الفيديو مكتوم تلقائياً لأن الصوت الخارجي نشط');
+          showToast('الصوت الأساسي مكتوم تلقائياً أثناء تشغيل مصدر صوت خارجي');
           return;
         }
         this.isMuted = !this.isMuted;
         if (window.NativePlayback) window.NativePlayback.setMuted(this.isMuted);
-        showToast(this.isMuted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
+        const label=document.getElementById('mute-label');
+        if(label) label.textContent=this.isMuted ? 'إلغاء الكتم' : 'كتم الصوت';
+        const button=document.getElementById('ctrl-mute-btn');
+        if(button) button.classList.toggle('is-active',this.isMuted);
+      }
+
+      seekBy(offsetMs) {
+        if (currentAppMode === 'live') {
+          showToast('التقديم والإرجاع متاحان للأفلام والمسلسلات فقط');
+          return;
+        }
+        if (!window.NativePlayback || !window.NativePlayback.seekBy) return;
+        window.NativePlayback.seekBy(offsetMs);
+      }
+
+      toggleSubtitles() {
+        this.subtitlesEnabled = !this.subtitlesEnabled;
+        if (window.NativePlayback && window.NativePlayback.setSubtitlesEnabled) {
+          window.NativePlayback.setSubtitlesEnabled(this.subtitlesEnabled);
+        }
+        const button=document.getElementById('btn-toggle-subtitles');
+        const label=document.getElementById('subtitle-label');
+        if(button) { button.classList.toggle('is-active',this.subtitlesEnabled); button.setAttribute('aria-pressed',String(this.subtitlesEnabled)); }
+        if(label) label.textContent=this.subtitlesEnabled ? 'إخفاء الترجمة' : 'الترجمة';
+      }
+
+      toggleQualityMenu() {
+        const menu=document.getElementById('player-quality-menu');
+        const button=document.getElementById('btn-quality');
+        if(!menu||!button) return;
+        const open=!menu.classList.contains('open');
+        menu.classList.toggle('open',open);
+        button.setAttribute('aria-expanded',String(open));
       }
 
       pause() {
@@ -2276,26 +2365,15 @@
       updateUiInfo(item) {
         document.getElementById('ticker-cat').textContent = item.categoryName || '';
         document.getElementById('ticker-ch').textContent = item.name || '';
-        document.getElementById('player-ch-name').textContent = item.name || '';
         const scoreOverlay = document.getElementById('player-score-overlay');
-        const vodMetaBox = document.getElementById('player-vod-meta-box');
-        const primaryLabel = document.getElementById('primary-action-label');
+        const playerPanel = document.querySelector('.live-player-col');
+        if (playerPanel) playerPanel.classList.toggle('is-live-mode', currentAppMode === 'live');
+        if (scoreOverlay) scoreOverlay.style.display = currentAppMode === 'live' ? 'flex' : 'none';
         if (currentAppMode === 'live') {
-          scoreOverlay.style.display = 'flex';
-          vodMetaBox.style.display = 'none';
-          primaryLabel.textContent = 'دليل البرامج';
           document.getElementById('epg-modal-channel-name').textContent = 'دليل البرامج - ' + item.name;
           document.getElementById('epg-curr-title').textContent = item.epgTitle || 'بث مباشر';
           document.getElementById('epg-curr-desc').textContent = item.epgDesc || 'لا توجد تفاصيل إضافية لهذا البرنامج.';
           document.getElementById('epg-next-title').textContent = item.epgNext || 'البرنامج التالي';
-        } else {
-          scoreOverlay.style.display = 'none';
-          vodMetaBox.style.display = 'flex';
-          document.getElementById('vod-rating-tag').textContent = '★ ' + (item.rating || '—') + '/10';
-          document.getElementById('vod-specs-tag').textContent = item.specs || '—';
-          document.getElementById('vod-cat-tag').textContent = item.categoryName || '';
-          document.getElementById('vod-desc-text').textContent = item.desc || 'لا يوجد وصف متاح.';
-          primaryLabel.textContent = currentAppMode === 'movies' ? 'تشغيل الفيلم' : 'تشغيل الحلقة';
         }
         updateFavoriteButtons(item.id);
       }
@@ -2303,6 +2381,7 @@
       stopAndRelease() {
         if (dualAudioEngine) dualAudioEngine.stopExternalAudio(false);
         if (window.NativePlayback) window.NativePlayback.stop();
+        const playerPanel=document.querySelector('.live-player-col'); if(playerPanel) playerPanel.classList.remove('has-active-playback');
         this.currentItem = null;
         this.updatePlaybackState(false);
       }
@@ -3171,9 +3250,11 @@
     }
     function updateFavoriteButtons(itemId) {
       const isFav = isFavorite(itemId);
-      const heartBtn = document.getElementById('player-heart-btn');
       const favLabel = document.getElementById('fav-btn-label');
-      if (heartBtn) heartBtn.classList.toggle('active', isFav);
+      const previewFavorite = document.getElementById('btn-toggle-fav');
+      const playbackFavorite = document.getElementById('btn-playback-fav');
+      if (previewFavorite) previewFavorite.classList.toggle('active', isFav);
+      if (playbackFavorite) playbackFavorite.classList.toggle('active', isFav);
       if (favLabel) favLabel.textContent = isFav ? 'في المفضلة' : 'إضافة للمفضلة';
     }
 
@@ -3203,10 +3284,18 @@
     let remoteNavigator;
 
     window.onNativePlaybackBuffering = function() { if (videoPlaybackController) videoPlaybackController.showLoader('جارٍ تخزين البث مؤقتاً...'); };
-    window.onNativePlaybackReady = function() { if (videoPlaybackController) videoPlaybackController.hideLoader(); };
+    window.onNativePlaybackReady = function() {
+      if (videoPlaybackController) {
+        videoPlaybackController.hideLoader();
+        const panel=document.querySelector('.live-player-col'); if(panel) panel.classList.add('has-active-playback');
+      }
+    };
     window.onNativePlaybackStateChanged = function(isPlaying) { if (videoPlaybackController) videoPlaybackController.updatePlaybackState(!!isPlaying); };
     window.onNativePlaybackEnded = function() { if (videoPlaybackController) videoPlaybackController.updatePlaybackState(false); };
-    window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل البث'); };
+    window.onNativePlaybackError = function(message) {
+      const panel=document.querySelector('.live-player-col'); if(panel) panel.classList.remove('has-active-playback');
+      if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل البث');
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('login-submit').addEventListener('click', () => performXtreamLogin(
@@ -3292,9 +3381,7 @@
       document.getElementById('btn-toggle-fav').addEventListener('click', () => {
         if (currentSelectedItem) toggleFavorite(currentSelectedItem.id);
       });
-      document.getElementById('player-heart-btn').addEventListener('click', () => {
-        if (currentSelectedItem) toggleFavorite(currentSelectedItem.id);
-      });
+
 
       // 9. Modals Close Handlers
       document.getElementById('close-ext-audio').addEventListener('click', closeAllModals);

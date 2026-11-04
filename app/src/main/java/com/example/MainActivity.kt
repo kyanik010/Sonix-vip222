@@ -293,6 +293,44 @@ class MainActivity : ComponentActivity() {
         }
 
         @android.webkit.JavascriptInterface
+        fun seekBy(offsetMs: Long) {
+            runOnUiThread {
+                val player = nativePlayer ?: return@runOnUiThread
+                if (!player.isCurrentMediaItemSeekable) return@runOnUiThread
+                val target = (player.currentPosition + offsetMs).coerceAtLeast(0L)
+                val duration = player.duration
+                player.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
+                if (externalAudioActive) {
+                    secondaryAudioPlayer?.seekTo(target)
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun setVideoQuality(maxHeight: Int) {
+            runOnUiThread {
+                val player = nativePlayer ?: return@runOnUiThread
+                val height = maxHeight.coerceIn(360, 1080)
+                val width = (height * 16f / 9f).roundToInt()
+                player.trackSelectionParameters = player.trackSelectionParameters
+                    .buildUpon()
+                    .setMaxVideoSize(width, height)
+                    .build()
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun setSubtitlesEnabled(enabled: Boolean) {
+            runOnUiThread {
+                val player = nativePlayer ?: return@runOnUiThread
+                player.trackSelectionParameters = player.trackSelectionParameters
+                    .buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
+                    .build()
+            }
+        }
+
+        @android.webkit.JavascriptInterface
         fun attachExternalAudio(url: String) { runOnUiThread { attachExternalAudioInternal(url) } }
 
         @android.webkit.JavascriptInterface
