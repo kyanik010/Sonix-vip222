@@ -1661,8 +1661,8 @@
             <!-- Top Left Match Score / Status Overlay -->
             <div id="player-score-overlay" class="player-match-overlay">
               <span class="live-pill">LIVE</span>
-              <span class="match-score">0 - 2</span>
-              <span class="match-time">55:07</span>
+              <span class="match-score">—</span>
+              <span class="match-time">—</span>
             </div>
 
             <!-- Top Right External Audio Active Indicator -->
@@ -1702,11 +1702,11 @@
           <!-- Metadata Box for VOD (Movies / Series) -->
           <div id="player-vod-meta-box" class="vod-meta-box" style="display:none;">
             <div class="vod-meta-row">
-              <span id="vod-rating-tag" class="vod-rating-pill">★ 8.6/10</span>
-              <span id="vod-specs-tag" style="color:var(--focus-blue); font-weight:700;">4K HDR • 166 دقيقة</span>
-              <span id="vod-cat-tag" style="color:var(--text-silver);">خيال علمي</span>
+              <span id="vod-rating-tag" class="vod-rating-pill">—</span>
+              <span id="vod-specs-tag" style="color:var(--focus-blue); font-weight:700;">—</span>
+              <span id="vod-cat-tag" style="color:var(--text-silver);">—</span>
             </div>
-            <div id="vod-desc-text" class="vod-synopsis">يواصل بول أتريدس رحلته الأسطورية متحالفا مع تشاني وفريمن للانتقام من المتآمرين الذين دمروا عائلته.</div>
+            <div id="vod-desc-text" class="vod-synopsis">لا يتوفر وصف لهذا المحتوى.</div>
           </div>
 
           <!-- Action Buttons: EPG / Play Movie + Favorites + Dual Audio -->
@@ -1863,9 +1863,9 @@
           <div class="epg-timeline-box">
             <div class="epg-card-curr">
               <span class="epg-badge-live">يُعرض الآن</span>
-              <div id="epg-curr-title" class="epg-title">الاستوديو التحليلي - دوري أبطال أوروبا</div>
-              <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">٢٠:٣٠ - ٢٣:١٥ (متبقي ٤٢ دقيقة)</div>
-              <div id="epg-curr-desc" class="epg-desc">تغطية خاصة ومباشرة لقمة مباريات الليلة مع نخبة من ألمع نجوم التحليل الرياضي في العالم العربي.</div>
+              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG</div>
+              <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">—</div>
+              <div id="epg-curr-desc" class="epg-desc">لا تتوفر تفاصيل البرنامج من الخادم.</div>
               <div class="epg-progress-bar">
                 <div id="epg-progress-percent" class="epg-progress-fill" style="width:65%;"></div>
               </div>
@@ -2852,7 +2852,11 @@
       series = rawSeries.map((x,i) => ({id:String(x.series_id),seriesId:String(x.series_id),number:i+1,name:x.name || 'مسلسل',
         category:x.category_id == null ? '' : 'series-' + x.category_id,categoryName:categoryName(sc,'series-',x.category_id),
         logo:x.cover || '',logoText:'',streamUrl:'',rating:x.rating || '',desc:x.plot || ''}));
-      localStorage.setItem('sonix_provider_cache_v1',JSON.stringify({liveCategories,liveChannels,movieCategories,movies,seriesCategories,series}));
+      const safeCopy = rows => rows.map(item => ({...item, streamUrl:'', audioOnlyUrl:''}));
+      localStorage.setItem('sonix_provider_cache_v1',JSON.stringify({
+        liveCategories,liveChannels:safeCopy(liveChannels),movieCategories,movies:safeCopy(movies),
+        seriesCategories,series:safeCopy(series)
+      }));
       isOfflineCache = false;
       renderCategories(); renderItems(); renderAudioSourcePicker();
     }
@@ -2863,6 +2867,8 @@
         liveCategories=c.liveCategories || []; liveChannels=c.liveChannels || [];
         movieCategories=c.movieCategories || []; movies=c.movies || [];
         seriesCategories=c.seriesCategories || []; series=c.series || [];
+        liveChannels=liveChannels.map(x=>({...x,streamUrl:makeStreamUrl('live',x.id,{container_extension:x.containerExtension || 'ts'})}));
+        movies=movies.map(x=>({...x,streamUrl:makeStreamUrl('movie',x.id,{container_extension:x.containerExtension || 'mp4'})}));
         return liveChannels.length + movies.length + series.length > 0;
       } catch (_) { return false; }
     }
@@ -3131,6 +3137,26 @@
       });
     }
 
+    function loadLiveEpg(item) {
+      if (!item || !window.XtreamBridge) return;
+      try {
+        const response=parseNative(window.XtreamBridge.shortEpg(item.id));
+        const listings=response.epg_listings || [];
+        if (!listings.length) return;
+        const decodeText=value => {
+          try { return decodeURIComponent(escape(atob(value || ''))); } catch (_) { return value || ''; }
+        };
+        const current=listings[0], next=listings[1];
+        item.epgTitle=decodeText(current.title);
+        item.epgDesc=decodeText(current.description);
+        item.epgNext=next ? decodeText(next.title) : '';
+        if(currentSelectedItem && currentSelectedItem.id === item.id) {
+          document.getElementById('epg-curr-title').textContent=item.epgTitle || 'بث مباشر';
+          document.getElementById('epg-curr-desc').textContent=item.epgDesc || 'لا توجد تفاصيل إضافية';
+          document.getElementById('epg-next-title').textContent=item.epgNext || 'لا توجد بيانات للبرنامج التالي';
+        }
+      } catch(error) { console.warn('EPG unavailable',error); }
+    }
     function selectItem(item) {
       currentSelectedItem = item;
       document.querySelectorAll('.channel-row').forEach(el => {
@@ -3140,6 +3166,7 @@
       if (currentAppMode === 'series' && item.seriesId) { openSeriesEpisodes(item); return; }
       if (!item.streamUrl) { showToast('رابط التشغيل غير متوفر من الخادم'); return; }
       videoPlaybackController.loadItem(item);
+      if (currentAppMode === 'live') loadLiveEpg(item);
       showToast('تم الاختيار: ' + item.name);
     }
 
