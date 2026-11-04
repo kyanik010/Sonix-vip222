@@ -2777,7 +2777,23 @@
         if (!focusables.length) return;
 
         let currentIndex = focusables.indexOf(document.activeElement);
+        if (currentIndex === -1) {
+          currentIndex = focusables.indexOf(this.currentFocusedElement);
+        }
         if (currentIndex === -1) currentIndex = 0;
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const focused = focusables.includes(document.activeElement)
+            ? document.activeElement
+            : (focusables.includes(this.currentFocusedElement)
+              ? this.currentFocusedElement
+              : focusables[currentIndex]);
+          if (focused && !focused.disabled && focused.getAttribute('aria-disabled') !== 'true') {
+            focused.click();
+          }
+          return;
+        }
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
           e.preventDefault();
@@ -2918,15 +2934,6 @@
       } else {
         switchView('view-home');
       }
-    };
-
-    // Global reset to home screen whenever app is resumed
-    window.ensureHomeScreen = function() {
-      closeAllModals();
-      if (videoPlaybackController && videoPlaybackController.isFullscreen) {
-        videoPlaybackController.exitFullscreen();
-      }
-      switchView('view-home');
     };
 
     /**
