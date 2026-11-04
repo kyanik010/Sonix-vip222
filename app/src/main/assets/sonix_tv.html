@@ -1265,6 +1265,48 @@
       background: #0E141B;
     }
 
+    /* SONIX TV settings: compact cards, touch and remote friendly. */
+    .settings-body { gap: 12px; }
+    .settings-section {
+      display: flex; flex-direction: column; gap: 9px;
+      padding: 13px 14px; border: 1px solid var(--border-panel);
+      border-radius: 13px; background: rgba(10,15,20,0.72);
+    }
+    .settings-section-heading {
+      color: var(--accent-gold); font-size: 0.9rem; font-weight: 800;
+      padding-bottom: 7px; border-bottom: 1px solid var(--border-panel);
+    }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; min-height: 42px; color: var(--text-white);
+      font-size: 0.82rem;
+    }
+    .settings-row > span { display:flex; flex-direction:column; gap:2px; }
+    .settings-row strong { font-size: 0.84rem; font-weight: 700; }
+    .settings-row small,.settings-note { color: var(--text-muted); font-size: 0.72rem; }
+    .settings-select {
+      min-width: 112px; max-width: 44%; padding: 8px 10px;
+      color: var(--text-white); background: #1C2A38;
+      border: 1px solid var(--border-panel); border-radius: 8px;
+      font: inherit; font-weight: 700;
+    }
+    .settings-switch {
+      width: 22px; height: 22px; min-width: 22px;
+      accent-color: var(--accent-gold); cursor: pointer;
+    }
+    .settings-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .settings-action-primary { background:var(--accent-gold); color:#101820; border:0; font-weight:800; }
+    .settings-action-secondary { background:#1C2A38; color:#fff; border:1px solid var(--border-panel); }
+    .settings-credentials-row { display:flex; gap:8px; }
+    .settings-credentials-row > input { min-width:0; width:50%; }
+    #modal-settings .modal-window { width:clamp(340px, 62vw, 720px); max-height:88vh; }
+    #modal-settings .modal-body { overscroll-behavior:contain; }
+    @media (max-width:600px) {
+      #modal-settings .modal-window { width:96vw; max-height:90vh; }
+      #modal-settings .modal-body { padding:12px; }
+      .settings-row { gap:8px; }
+    }
+
     /* Dual Audio Modal Styles */
     .audio-status-banner {
       padding: 10px 14px;
@@ -2002,38 +2044,71 @@
           </div>
           <button id="close-settings" class="modal-close-btn focusable">&times;</button>
         </div>
-        <div class="modal-body">
-          <div>
-            <div style="font-size:0.88rem; font-weight:800; color:var(--focus-blue); margin-bottom:8px;">إعدادات المشغل والصوت:</div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <label style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
-                <span>محرك الفيديو:</span>
-                <span style="font-weight:700; color:#fff;">Media3 ExoPlayer (Android Native)</span>
-              </label>
-              <label style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
-                <span>محرك الصوت الخارجي:</span>
-                <span style="font-weight:700; color:var(--accent-gold);">Web Audio API (مزامنة فورية)</span>
-              </label>
-              <label style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
-                <span>سعة التخزين المؤقت (Buffer):</span>
-                <span style="font-weight:700; color:#fff;">متوسط (15 ثانية)</span>
-              </label>
-            </div>
-          </div>
+        <div class="modal-body settings-body">
+          <section class="settings-section">
+            <div class="settings-section-heading">تشغيل الفيديو</div>
+            <label class="settings-row" for="settings-quality">
+              <span><strong>جودة الفيديو الافتراضية</strong><small>تُطبق عند بدء تشغيل المحتوى</small></span>
+              <select id="settings-quality" class="settings-select focusable">
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+                <option value="480">480p</option>
+              </select>
+            </label>
+            <label class="settings-row" for="settings-subtitles">
+              <span><strong>تفعيل الترجمة افتراضياً</strong><small>يمكن تغييرها أثناء المشاهدة</small></span>
+              <input id="settings-subtitles" class="settings-switch focusable" type="checkbox">
+            </label>
+          </section>
 
-          <div style="border-top:1px solid var(--border-panel); padding-top:12px;">
-            <div style="font-size:0.88rem; font-weight:800; color:var(--focus-blue); margin-bottom:8px;">ربط اشتراك IPTV حقيقي (Xtream Codes):</div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <input type="text" id="iptv-server-url" class="search-input focusable" style="border-radius:8px;" placeholder="رابط الخادم (Server URL)" />
-              <div style="display:flex; gap:8px;">
-                <input type="text" id="iptv-username" class="search-input focusable" style="border-radius:8px;" placeholder="اسم المستخدم (Username)" />
-                <input type="password" id="iptv-password" class="search-input focusable" style="border-radius:8px;" placeholder="كلمة المرور (Password)" />
-              </div>
-              <button id="btn-save-iptv" class="action-btn focusable" style="background:var(--focus-blue); color:#0A0F14; border:none; font-weight:800; align-self:flex-start;">
-                حفظ واختبار الاتصال
-              </button>
+          <section class="settings-section">
+            <div class="settings-section-heading">تخصيص المحتوى</div>
+            <label class="settings-row" for="settings-favorites-first">
+              <span><strong>إظهار المفضلة أولاً</strong><small>داخل قائمة جميع العناصر</small></span>
+              <input id="settings-favorites-first" class="settings-switch focusable" type="checkbox">
+            </label>
+            <label class="settings-row" for="settings-remember-section">
+              <span><strong>تذكر آخر قسم</strong><small>استعادة القسم عند فتح شاشة المحتوى</small></span>
+              <input id="settings-remember-section" class="settings-switch focusable" type="checkbox">
+            </label>
+            <label class="settings-row" for="settings-remember-item">
+              <span><strong>تذكر آخر عنصر محدد</strong><small>استعادة التحديد دون تشغيل تلقائي</small></span>
+              <input id="settings-remember-item" class="settings-switch focusable" type="checkbox">
+            </label>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">المظهر</div>
+            <label class="settings-row" for="settings-text-scale">
+              <span><strong>حجم النصوص والواجهة</strong><small>تغيير حجم عناصر الواجهة المعتمدة على القياسات النسبية</small></span>
+              <select id="settings-text-scale" class="settings-select focusable">
+                <option value="90">صغير</option>
+                <option value="100">متوسط</option>
+                <option value="110">كبير</option>
+                <option value="120">كبير جداً</option>
+              </select>
+            </label>
+            <div class="settings-note">واجهة SONIX TV تستخدم الوضع الداكن افتراضياً.</div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">الاشتراك والتحديث</div>
+            <div class="settings-actions">
+              <button id="settings-refresh" class="action-btn focusable settings-action-primary">تحديث بيانات الاشتراك والقوائم</button>
+              <button id="settings-account" class="action-btn focusable settings-action-secondary">عرض معلومات الاشتراك</button>
             </div>
-          </div>
+            <div class="settings-note">يتم التحديث من حساب IPTV المحفوظ. يلزم تسجيل الدخول أولاً.</div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">إدارة اشتراك IPTV</div>
+            <input type="text" id="iptv-server-url" class="search-input focusable" style="border-radius:8px;" placeholder="رابط الخادم (Server URL)" />
+            <div class="settings-credentials-row">
+              <input type="text" id="iptv-username" class="search-input focusable" style="border-radius:8px;" placeholder="اسم المستخدم (Username)" />
+              <input type="password" id="iptv-password" class="search-input focusable" style="border-radius:8px;" placeholder="كلمة المرور (Password)" />
+            </div>
+            <button id="btn-save-iptv" class="action-btn focusable settings-action-primary">حفظ واختبار الاتصال</button>
+          </section>
         </div>
         <div class="modal-footer">
           <button id="close-settings-footer" class="action-btn focusable" style="background:#1C2A38; color:#fff;">إغلاق</button>
@@ -2120,6 +2195,93 @@
     // Mode State: 'live' | 'movies' | 'series'
     let currentAppMode = 'live';
 
+    const SONIX_SETTINGS_KEY = 'sonix_user_settings_v1';
+    const SONIX_DEFAULT_SETTINGS = {
+      quality: 720,
+      subtitles: true,
+      favoritesFirst: false,
+      rememberSection: true,
+      rememberItem: true,
+      textScale: 100
+    };
+    function readSonixSettings() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SONIX_SETTINGS_KEY) || '{}');
+        const value = {...SONIX_DEFAULT_SETTINGS, ...(saved && typeof saved === 'object' ? saved : {})};
+        value.quality = [480,720,1080].includes(Number(value.quality)) ? Number(value.quality) : 720;
+        value.textScale = [90,100,110,120].includes(Number(value.textScale)) ? Number(value.textScale) : 100;
+        ['subtitles','favoritesFirst','rememberSection','rememberItem'].forEach(key => value[key] = value[key] !== false);
+        return value;
+      } catch (_) { return {...SONIX_DEFAULT_SETTINGS}; }
+    }
+    let sonixSettings = readSonixSettings();
+    function saveSonixSettings() {
+      try { localStorage.setItem(SONIX_SETTINGS_KEY, JSON.stringify(sonixSettings)); }
+      catch (error) { console.warn('Unable to save SONIX settings', error); }
+    }
+    function applySonixAppearance() {
+      document.documentElement.style.fontSize = (16 * sonixSettings.textScale / 100) + 'px';
+    }
+    function syncSonixSettingsControls() {
+      const values = {
+        'settings-quality': sonixSettings.quality,
+        'settings-subtitles': sonixSettings.subtitles,
+        'settings-favorites-first': sonixSettings.favoritesFirst,
+        'settings-remember-section': sonixSettings.rememberSection,
+        'settings-remember-item': sonixSettings.rememberItem,
+        'settings-text-scale': sonixSettings.textScale
+      };
+      Object.entries(values).forEach(([id,value]) => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        if (control.type === 'checkbox') control.checked = Boolean(value);
+        else control.value = String(value);
+      });
+    }
+    function updateSonixSetting(key, value) {
+      sonixSettings[key] = value;
+      saveSonixSettings();
+      if (key === 'textScale') applySonixAppearance();
+      if (key === 'favoritesFirst' && currentActiveCategory === 'all') renderItems();
+      if (key === 'subtitles' && videoPlaybackController) {
+        videoPlaybackController.subtitlesEnabled = Boolean(value);
+        if (window.NativePlayback && window.NativePlayback.setSubtitlesEnabled) {
+          window.NativePlayback.setSubtitlesEnabled(Boolean(value));
+        }
+        const button = document.getElementById('btn-toggle-subtitles');
+        if (button) {
+          button.classList.toggle('is-active', Boolean(value));
+          button.setAttribute('aria-pressed', String(Boolean(value)));
+        }
+        const label = document.getElementById('subtitle-label');
+        if (label) label.textContent = value ? 'إخفاء الترجمة' : 'الترجمة';
+      }
+      if (key === 'quality' && window.NativePlayback && window.NativePlayback.isActive &&
+          window.NativePlayback.isActive() && window.NativePlayback.setVideoQuality) {
+        window.NativePlayback.setVideoQuality(Number(value));
+        const label = document.getElementById('quality-label');
+        if (label) label.textContent = Number(value) + 'p';
+        document.querySelectorAll('.player-quality-option').forEach(option =>
+          option.setAttribute('aria-pressed', String(Number(option.dataset.quality) === Number(value))));
+      }
+    }
+    function initializeSonixSettingsControls() {
+      syncSonixSettingsControls();
+      applySonixAppearance();
+      const bindings = [
+        ['settings-quality','quality',value => Number(value)],
+        ['settings-subtitles','subtitles',Boolean],
+        ['settings-favorites-first','favoritesFirst',Boolean],
+        ['settings-remember-section','rememberSection',Boolean],
+        ['settings-remember-item','rememberItem',Boolean],
+        ['settings-text-scale','textScale',value => Number(value)]
+      ];
+      bindings.forEach(([id,key,convert]) => {
+        const control = document.getElementById(id);
+        if (control) control.addEventListener('change', () => updateSonixSetting(key, convert(control.type === 'checkbox' ? control.checked : control.value)));
+      });
+    }
+
     // 1. LIVE CHANNELS
     // Provider data stays empty until the user authenticates with Xtream Codes.
     let liveCategories = [], liveChannels = [];
@@ -2191,7 +2353,7 @@
         this.maxRetries = 3;
         this.isFullscreen = false;
         this.isMuted = false;
-        this.subtitlesEnabled = true;
+        this.subtitlesEnabled = sonixSettings.subtitles;
         this.controlsHideTimer = null;
         this.bindEvents();
       }
@@ -2312,6 +2474,8 @@
         }
         // Live channels, movies and series episodes all use the same native Media3 player.
         window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
+        if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
+        if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
       }
 
       syncNativeBounds() {
@@ -2385,6 +2549,8 @@
 
       toggleSubtitles() {
         this.subtitlesEnabled = !this.subtitlesEnabled;
+        sonixSettings.subtitles = this.subtitlesEnabled;
+        saveSonixSettings();
         if (window.NativePlayback && window.NativePlayback.setSubtitlesEnabled) {
           window.NativePlayback.setSubtitlesEnabled(this.subtitlesEnabled);
         }
@@ -2832,6 +2998,7 @@
 
     function openModal(modalId) {
       closeAllModals();
+      if (modalId === 'modal-settings') syncSonixSettingsControls();
       const modal = document.getElementById(modalId);
       if (modal) {
         modal.classList.add('active');
@@ -3094,6 +3261,9 @@
 
     function setAppMode(mode) {
       currentAppMode = mode;
+      if (sonixSettings.rememberSection) {
+        try { localStorage.setItem('sonix_last_mode_v1', mode); } catch (_) {}
+      }
       
       // Update sidebar nav highlights
       document.getElementById('side-nav-live').classList.toggle('active', mode === 'live');
@@ -3123,6 +3293,20 @@
         catSearchInput.placeholder = 'البحث في تصنيفات المسلسلات...';
         currentActiveCategory = seriesCategories[0] ? seriesCategories[0].id : '';
         currentSelectedItem = series[0] || null;
+      }
+
+      if (sonixSettings.rememberSection) {
+        try {
+          const savedCategory = localStorage.getItem('sonix_last_category_' + mode);
+          if (savedCategory && getActiveCategoryList().some(category => category.id === savedCategory)) currentActiveCategory = savedCategory;
+        } catch (_) {}
+      }
+      if (sonixSettings.rememberItem) {
+        try {
+          const savedId = localStorage.getItem('sonix_last_item_' + mode);
+          const remembered = getActiveItemList().find(item => String(item.id) === String(savedId));
+          if (remembered) currentSelectedItem = {...remembered, streamUrl:''};
+        } catch (_) {}
       }
 
       renderCategories();
@@ -3182,6 +3366,9 @@
 
     function selectCategory(catId) {
       currentActiveCategory = catId;
+      if (sonixSettings.rememberSection) {
+        try { localStorage.setItem('sonix_last_category_' + currentAppMode, catId); } catch (_) {}
+      }
       document.querySelectorAll('.category-item').forEach(el => {
         el.classList.toggle('selected', el.dataset.catId === catId);
       });
@@ -3208,6 +3395,9 @@
       if (currentActiveCategory === 'all') items = allItems;
       else if (currentActiveCategory === 'favorites') items = allItems.filter(item => isFavorite(item.id));
       else items = allItems.filter(item => item.category === currentActiveCategory);
+      if (currentActiveCategory === 'all' && sonixSettings.favoritesFirst) {
+        items = items.slice().sort((a,b) => Number(isFavorite(b.id)) - Number(isFavorite(a.id)));
+      }
       if (normalizedFilter) items = items.filter(item => String(item.name || '').toLowerCase().includes(normalizedFilter));
       const countSuffix = currentAppMode === 'movies' ? 'فيلم' : (currentAppMode === 'series' ? 'مسلسل' : 'قناة');
       document.getElementById('channels-badge-count').textContent = `${items.length} ${countSuffix}`;
@@ -3275,6 +3465,9 @@
     }
     function selectItem(item) {
       currentSelectedItem = item;
+      if (sonixSettings.rememberItem) {
+        try { localStorage.setItem('sonix_last_item_' + currentAppMode, String(item.id)); } catch (_) {}
+      }
       document.querySelectorAll('.channel-row').forEach(el => {
         el.classList.toggle('selected', el.dataset.itemId === item.id);
       });
@@ -3389,6 +3582,9 @@
         if(e.key === 'Enter') document.getElementById('login-submit').click();
       }));
 
+      // Load persisted preferences before the playback controller is created.
+      initializeSonixSettingsControls();
+
       // 1. Initialize Video & Audio Engines
       videoPlaybackController = new VideoPlaybackController();
       dualAudioEngine = new DualAudioSystem(videoPlaybackController);
@@ -3406,7 +3602,14 @@
       // 4. Bind Home Screen Action Cards
       document.getElementById('card-channels').addEventListener('click', () => {
         switchView('view-live');
-        setAppMode('live');
+        let rememberedMode = 'live';
+        if (sonixSettings.rememberSection) {
+          try {
+            const saved = localStorage.getItem('sonix_last_mode_v1');
+            if (['live','movies','series'].includes(saved)) rememberedMode = saved;
+          } catch (_) {}
+        }
+        setAppMode(rememberedMode);
       });
       document.getElementById('card-movies').addEventListener('click', () => {
         switchView('view-live');
@@ -3435,6 +3638,14 @@
       document.getElementById('btn-refresh').addEventListener('click', refreshXtreamContent);
       document.getElementById('btn-profile').addEventListener('click', () => openModal('modal-profile'));
       document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'));
+      document.getElementById('settings-refresh').addEventListener('click', () => {
+        refreshXtreamContent();
+      });
+      document.getElementById('settings-account').addEventListener('click', () => {
+        closeAllModals();
+        openModal('modal-profile');
+      });
+
       document.getElementById('btn-save-iptv').addEventListener('click', () => {
         const server=document.getElementById('iptv-server-url').value;
         const username=document.getElementById('iptv-username').value;
