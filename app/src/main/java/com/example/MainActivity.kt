@@ -161,6 +161,32 @@ class MainActivity : ComponentActivity() {
 
         @android.webkit.JavascriptInterface
         fun isPlaying(): Boolean = nativePlayer?.isPlaying == true
+
+        @android.webkit.JavascriptInterface
+        fun isActive(): Boolean = nativePlayer != null
+
+        @android.webkit.JavascriptInterface
+        fun pause() { runOnUiThread { nativePlayer?.pause() } }
+
+        @android.webkit.JavascriptInterface
+        fun resume() { runOnUiThread { nativePlayer?.play() } }
+
+        @android.webkit.JavascriptInterface
+        fun setMuted(muted: Boolean) { runOnUiThread { nativePlayer?.volume = if (muted) 0f else 1f } }
+
+        @android.webkit.JavascriptInterface
+        fun resize(left: Float, top: Float, width: Float, height: Float) {
+            runOnUiThread {
+                val view = nativePlayerView ?: return@runOnUiThread
+                val density = resources.displayMetrics.density
+                val params = view.layoutParams as? FrameLayout.LayoutParams ?: return@runOnUiThread
+                params.width = (width * density).roundToInt().coerceAtLeast(1)
+                params.height = (height * density).roundToInt().coerceAtLeast(1)
+                params.leftMargin = (left * density).roundToInt()
+                params.topMargin = (top * density).roundToInt()
+                view.layoutParams = params
+            }
+        }
     }
 
     private fun stopNativePlayer() {
