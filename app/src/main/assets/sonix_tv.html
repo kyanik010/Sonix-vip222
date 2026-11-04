@@ -2188,7 +2188,15 @@
 
       loadItem(item) {
         if (!item) return;
-        if (dualAudioEngine && dualAudioEngine.isActive && dualAudioEngine.selectedSourceChannel && String(dualAudioEngine.selectedSourceChannel.id) === String(item.id)) dualAudioEngine.stopExternalAudio(false);
+        // The HTML preview is the only video surface used by SONIX TV.
+        if (window.NativePlayback) window.NativePlayback.stop();
+
+        if (dualAudioEngine && dualAudioEngine.isActive &&
+            dualAudioEngine.selectedSourceChannel &&
+            String(dualAudioEngine.selectedSourceChannel.id) === String(item.id)) {
+          dualAudioEngine.stopExternalAudio(false);
+        }
+
         this.currentItem = item;
         this.retryAttempts = 0;
         this.errorEl.classList.remove('active');
@@ -2199,62 +2207,48 @@
           this.hlsInstance = null;
         }
 
-        if (window.NativePlayback) window.NativePlayback.stop();
         this.videoEl.pause();
         this.videoEl.removeAttribute('src');
         this.videoEl.load();
+
         const streamUrl = item.streamUrl;
         if (!streamUrl) {
           this.showError('رابط البث غير متوفر من الاشتراك.');
           return;
         }
-        const normalizedUrl = streamUrl.toLowerCase().split('?')[0];
-        const isTs = normalizedUrl.endsWith('.ts');
-        const isM3u8 = normalizedUrl.endsWith('.m3u8');
-        const nativeFallback = isM3u8 && !(window.Hls && window.Hls.isSupported());
-        if ((isTs || nativeFallback) && window.NativePlayback) {
-          const viewport = document.querySelector('.video-viewport');
-          if (!viewport) {
-            this.showError('تعذر تحديد مساحة عرض الفيديو.');
-            return;
-          }
-          const rect = viewport.getBoundingClientRect();
-          window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
-          this.updateUiInfo(item);
-          return;
-        }
 
+        const isM3u8 = /\.m3u8(?:$|\?)/i.test(streamUrl);
         if (isM3u8 && window.Hls && Hls.isSupported()) {
-          this.hlsInstance = new Hls({
+          const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
             backBufferLength: 60
           });
-          this.hlsInstance.loadSource(streamUrl);
-          this.hlsInstance.attachMedia(this.videoEl);
-          this.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-            this.videoEl.play().catch(() => {});
+          this.hlsInstance = hls;
+          hls.loadSource(streamUrl);
+          hls.attachMedia(this.videoEl);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (this.hlsInstance === hls) this.videoEl.play().catch(() => {});
           });
-          this.hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  this.retryOrFallback(streamUrl);
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  this.hlsInstance.recoverMediaError();
-                  break;
-                default:
-                  this.hlsInstance.destroy();
-                  this.showError('خطأ غير متوقع في محرك HLS.');
-                  break;
-              }
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (this.hlsInstance !== hls || !data.fatal) return;
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              this.retryOrFallback(streamUrl);
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hls.recoverMediaError();
+            } else {
+              hls.destroy();
+              this.hlsInstance = null;
+              this.showError('خطأ غير متوقع في محرك HLS.');
             }
           });
         } else {
+          // Use the existing HTML video preview; never create a native video window.
           this.videoEl.src = streamUrl;
-          this.videoEl.play().catch((err) => {
-            console.warn('Autoplay prevented or network delay', err);
+          this.videoEl.play().catch(error => {
+            console.warn('HTML video playback failed', error);
           });
         }
 
@@ -2262,35 +2256,32 @@
       }
 
       retryOrFallback(url) {
+        // Retry only in HLS.js; never hand video playback to Android ExoPlayer.
+        if (window.NativePlayback) window.NativePlayback.stop();
+
         if (this.retryAttempts < this.maxRetries) {
           this.retryAttempts++;
           this.showLoader(`إعادة محاولة الاتصال (${this.retryAttempts}/${this.maxRetries})...`);
+
+          const retryItem = this.currentItem;
+          const retryHls = this.hlsInstance;
           setTimeout(() => {
-            if (this.hlsInstance) this.hlsInstance.startLoad();
-            else this.loadItem(this.currentItem);
+            if (this.currentItem !== retryItem ||
+                this.hlsInstance !== retryHls ||
+                !retryHls) return;
+            retryHls.startLoad();
           }, 1500);
           return;
         }
 
-        // HLS.js can fail on provider-specific manifests even when Media3 can play them.
-        // Hand the same authenticated stream URL to the existing native ExoPlayer bridge.
-        if (url && window.NativePlayback) {
-          if (this.hlsInstance) {
-            this.hlsInstance.destroy();
-            this.hlsInstance = null;
-          }
-          this.videoEl.pause();
-          this.videoEl.removeAttribute('src');
-          this.videoEl.load();
-          const viewport = document.querySelector('.video-viewport');
-          if (viewport) {
-            const rect = viewport.getBoundingClientRect();
-            window.NativePlayback.play(url, rect.left, rect.top, rect.width, rect.height);
-            this.updateUiInfo(this.currentItem);
-            return;
-          }
+        if (this.hlsInstance) {
+          this.hlsInstance.destroy();
+          this.hlsInstance = null;
         }
-        this.showError('تعذر الاتصال بمصدر البث.');
+        this.videoEl.pause();
+        this.videoEl.removeAttribute('src');
+        this.videoEl.load();
+        this.showError('تعذر الاتصال بمصدر البث عبر مشغل HTML.');
       }
 
       handleError(e) {
@@ -2340,16 +2331,15 @@
       toggleFullscreen() {
         const container = document.querySelector('.video-viewport');
         if (!container) return;
+        // Fullscreen applies to the HTML preview only.
+        if (window.NativePlayback) window.NativePlayback.stop();
+
         this.isFullscreen = !this.isFullscreen;
         container.classList.toggle('is-fullscreen', this.isFullscreen);
-        if (window.NativePlayback && window.NativePlayback.isActive()) { const r=container.getBoundingClientRect(); window.NativePlayback.resize(r.left,r.top,r.width,r.height); }
-
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
           showToast('تم التكبير إلى ملء الشاشة (انقر مرتين أو اضغط زر الرجوع للتصغير)');
-          if (exitBtn && remoteNavigator) {
-            remoteNavigator.focusElement(exitBtn);
-          }
+          if (exitBtn && remoteNavigator) remoteNavigator.focusElement(exitBtn);
         } else {
           showToast('تم الخروج من وضع ملء الشاشة');
         }
@@ -2739,10 +2729,10 @@
     function switchView(viewId) {
       if (viewId === 'view-home') {
         if (videoPlaybackController) {
-          if (videoPlaybackController.isFullscreen) {
-            videoPlaybackController.exitFullscreen();
-          }
-          videoPlaybackController.pause();
+          if (videoPlaybackController.isFullscreen) videoPlaybackController.exitFullscreen();
+          videoPlaybackController.stopAndRelease();
+        } else if (window.NativePlayback) {
+          window.NativePlayback.stop();
         }
         if (dualAudioEngine) dualAudioEngine.stopExternalAudio(false);
       }
@@ -2751,19 +2741,14 @@
       const target = document.getElementById(viewId);
       if (target) {
         target.classList.add('active');
-
         let elementToFocus = null;
         if (viewId === 'view-home') {
           elementToFocus = document.getElementById('card-channels');
         } else if (viewId === 'view-live') {
           elementToFocus = target.querySelector('.category-item.selected') || document.getElementById('live-btn-back');
         }
-        if (!elementToFocus) {
-          elementToFocus = target.querySelector('.focusable');
-        }
-        if (elementToFocus && remoteNavigator) {
-          remoteNavigator.focusElement(elementToFocus);
-        }
+        if (!elementToFocus) elementToFocus = target.querySelector('.focusable');
+        if (elementToFocus && remoteNavigator) remoteNavigator.focusElement(elementToFocus);
       }
     }
 
