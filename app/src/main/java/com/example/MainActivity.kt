@@ -4,6 +4,17 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
+import android.graphics.Color
+import android.net.Uri
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import kotlin.math.roundToInt
+import org.json.JSONObject
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -16,6 +27,9 @@ import androidx.activity.OnBackPressedCallback
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
+    private var rootContainer: FrameLayout? = null
+    private var nativePlayer: ExoPlayer? = null
+    private var nativePlayerView: PlayerView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,10 +72,17 @@ class MainActivity : ComponentActivity() {
 
                 addJavascriptInterface(WebAppInterface(this@MainActivity), "AndroidBridge")
                 addJavascriptInterface(XtreamBridge(this@MainActivity), "XtreamBridge")
+                addJavascriptInterface(NativePlaybackBridge(), "NativePlayback")
             }
 
             webView = wv
-            setContentView(wv)
+            val root = FrameLayout(this)
+            root.addView(wv, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ))
+            rootContainer = root
+            setContentView(root)
 
             // Back button handling: routes back to Home or closes modals inside web app
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -78,6 +99,75 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private inner class NativePlaybackBridge {
+        @android.webkit.JavascriptInterface
+        fun play(url: String, left: Float, top: Float, width: Float, height: Float) {
+            runOnUiThread {
+                try {
+                    stopNativePlayer()
+                    val density = resources.displayMetrics.density
+                    val params = FrameLayout.LayoutParams(
+                        (width * density).roundToInt().coerceAtLeast(1),
+                        (height * density).roundToInt().coerceAtLeast(1)
+                    ).apply {
+                        leftMargin = (left * density).roundToInt()
+                        topMargin = (top * density).roundToInt()
+                    }
+                    val player = ExoPlayer.Builder(this@MainActivity).build()
+                    val view = PlayerView(this@MainActivity).apply {
+                        useController = false
+                        setShutterBackgroundColor(Color.BLACK)
+                        setBackgroundColor(Color.BLACK)
+                        this.player = player
+                    }
+                    nativePlayer = player
+                    nativePlayerView = view
+                    rootContainer?.addView(view, params)
+                    view.bringToFront()
+                    player.addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (playbackState == Player.STATE_READY) {
+                                webView?.evaluateJavascript("window.onNativePlaybackReady && window.onNativePlaybackReady()", null)
+                            }
+                        }
+                        override fun onPlayerError(error: PlaybackException) {
+                            stopNativePlayer()
+                            val message = JSONObject.quote("فشل تشغيل بث MPEG-TS: " + (error.message ?: "خطأ غير معروف"))
+                            webView?.evaluateJavascript("window.onNativePlaybackError && window.onNativePlaybackError($message)", null)
+                        }
+                    })
+                    player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                    player.prepare()
+                    player.playWhenReady = true
+                } catch (error: Exception) {
+                    stopNativePlayer()
+                    val message = JSONObject.quote(error.message ?: "تعذر تشغيل البث")
+                    webView?.evaluateJavascript("window.onNativePlaybackError && window.onNativePlaybackError($message)", null)
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun stop() { runOnUiThread { stopNativePlayer() } }
+
+        @android.webkit.JavascriptInterface
+        fun toggle() {
+            runOnUiThread {
+                nativePlayer?.let { if (it.isPlaying) it.pause() else it.play() }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun isPlaying(): Boolean = nativePlayer?.isPlaying == true
+    }
+
+    private fun stopNativePlayer() {
+        nativePlayerView?.let { rootContainer?.removeView(it) }
+        nativePlayerView = null
+        nativePlayer?.release()
+        nativePlayer = null
     }
 
     class WebAppInterface(private val activity: MainActivity) {
@@ -141,6 +231,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         webView?.onResume()
+        nativePlayer?.play()
         webView?.evaluateJavascript(
             "(function() { if (typeof window.ensureHomeScreen === 'function') { window.ensureHomeScreen(); } })()",
             null
@@ -153,10 +244,12 @@ class MainActivity : ComponentActivity() {
             "(function() { if (window.videoPlaybackController) { window.videoPlaybackController.pause(); } })()",
             null
         )
+        nativePlayer?.pause()
         webView?.onPause()
     }
 
     override fun onDestroy() {
+        stopNativePlayer()
         webView?.destroy()
         webView = null
         super.onDestroy()
