@@ -1386,7 +1386,7 @@
 </head>
 <body>
 
-  <section id="sonix-login-screen" aria-label="تسجيل الدخول">
+  <section id="sonix-login-screen" class="hidden" aria-label="تسجيل الدخول">
     <div class="sonix-login-card">
       <div class="sonix-brand" style="align-items:center"><div class="sonix-title-row"><span class="sonix-text">SONIX</span><span class="tv-text">TV</span></div><span class="stream-subtitle">XTREAM CODES</span></div>
       <div style="text-align:center;color:var(--text-silver)">أدخل بيانات اشتراك IPTV للاتصال بالخادم</div>
@@ -3415,16 +3415,17 @@
           loadXtreamContent();
           document.getElementById('sonix-login-screen').classList.add('hidden');
         } catch (restoreError) {
-          if(isNetworkFailure(restoreError) && restoreXtreamCache()) {
-            isOfflineCache=true;
-            updateAccount({username:saved.username});
-            document.getElementById('sonix-login-screen').classList.add('hidden');
+          // A successful previous login is persistent: never ask for credentials again
+          // merely because the provider is temporarily unreachable or rejects a restore.
+          const hasCache=restoreXtreamCache();
+          isOfflineCache=hasCache;
+          updateAccount({username:saved.username});
+          document.getElementById('sonix-login-screen').classList.add('hidden');
+          if(hasCache) {
             renderCategories();renderItems();renderAudioSourcePicker();
             showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
           } else {
-            activeCredentials=null;
-            document.getElementById('sonix-login-screen').classList.remove('hidden');
-            setLoginMessage(restoreError.message || 'تعذر استعادة الاشتراك');
+            showToast(restoreError.message || 'تعذر الاتصال بالاشتراك المحفوظ');
           }
         }
       } catch (_) {
