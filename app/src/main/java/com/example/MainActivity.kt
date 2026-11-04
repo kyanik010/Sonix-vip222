@@ -595,10 +595,8 @@ class MainActivity : ComponentActivity() {
         webView?.onResume()
         nativePlayer?.play()
         if (externalAudioActive) secondaryAudioPlayer?.play()
-        webView?.evaluateJavascript(
-            "(function() { if (typeof window.ensureHomeScreen === 'function') { window.ensureHomeScreen(); } })()",
-            null
-        )
+        // Keep the current screen and playback session when returning from background.
+        // The players were paused in onPause() and are resumed above.
     }
 
     override fun onPause() {
