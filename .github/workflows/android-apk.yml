@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/sonix-tv-scrolling
+      - fix/sonix-playback-preview-controls
   workflow_dispatch:
 
 permissions:

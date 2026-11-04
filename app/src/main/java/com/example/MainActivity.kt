@@ -24,6 +24,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -159,7 +160,9 @@ class MainActivity : ComponentActivity() {
                         .setMediaSourceFactory(mediaSourceFactory)
                         .build()
                     val textureView = TextureView(this@MainActivity).apply {
-                        setBackgroundColor(Color.BLACK)
+                        // TextureView does not support background drawables. Keep its
+                        // surface opaque and let ExoPlayer render directly into it.
+                        isOpaque = true
                         isFocusable = false
                         isFocusableInTouchMode = false
                     }
@@ -173,9 +176,25 @@ class MainActivity : ComponentActivity() {
                     // so the existing HTML controls and overlays remain interactive.
                     container.addView(textureView, 0, params)
                     player.setVideoTextureView(textureView)
+                    textureView.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+                        android.util.Log.d(
+                            "SONIXSurface",
+                            "TextureView layout=${right - left}x${bottom - top} shown=${view.isShown} attached=${view.isAttachedToWindow} opaque=${view.isOpaque}"
+                        )
+                    }
+                    textureView.post {
+                        android.util.Log.d(
+                            "SONIXSurface",
+                            "TextureView post-layout=${textureView.width}x${textureView.height} shown=${textureView.isShown} attached=${textureView.isAttachedToWindow}; requested=${params.width}x${params.height} at ${params.leftMargin},${params.topMargin}"
+                        )
+                    }
 
                     player.addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
+                            android.util.Log.d(
+                                "SONIXSurface",
+                                "playerState=${playbackState} videoFormat=${player.videoFormat?.width}x${player.videoFormat?.height} texture=${textureView.width}x${textureView.height} shown=${textureView.isShown}"
+                            )
                             when (playbackState) {
                                 Player.STATE_BUFFERING -> webView?.evaluateJavascript(
                                     "window.onNativePlaybackBuffering && window.onNativePlaybackBuffering()", null)
@@ -184,6 +203,20 @@ class MainActivity : ComponentActivity() {
                                 Player.STATE_ENDED -> webView?.evaluateJavascript(
                                     "window.onNativePlaybackEnded && window.onNativePlaybackEnded()", null)
                             }
+                        }
+
+                        override fun onVideoSizeChanged(videoSize: VideoSize) {
+                            android.util.Log.d(
+                                "SONIXSurface",
+                                "onVideoSizeChanged=${videoSize.width}x${videoSize.height} ratio=${videoSize.pixelWidthHeightRatio} unappliedRotation=${videoSize.unappliedRotationDegrees}"
+                            )
+                        }
+
+                        override fun onRenderedFirstFrame() {
+                            android.util.Log.i(
+                                "SONIXSurface",
+                                "FIRST_FRAME_RENDERED texture=${textureView.width}x${textureView.height} shown=${textureView.isShown}"
+                            )
                         }
 
                         override fun onIsPlayingChanged(isPlaying: Boolean) {

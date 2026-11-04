@@ -1033,85 +1033,97 @@
       min-width: 0;
       height: 42px;
     }
+    /* Playback controls stay in one compact row inside the video viewport. */
+    .player-preview-actions,
+    .now-playing-ticker,
+    .player-info-row,
+    .vod-meta-box,
+    .player-actions-row,
+    .player-match-overlay,
+    .ext-audio-active-badge { display: none !important; }
+
     .player-playback-controls {
       display: none;
       position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
       z-index: 8;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
       align-items: stretch;
-      padding: 8px;
+      padding: 5px;
       border: 1px solid rgba(255,255,255,.14);
-      border-radius: 12px;
-      background: rgba(7, 12, 18, .88);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 24px rgba(0,0,0,.42);
+      border-radius: 10px;
+      background: rgba(7, 12, 18, .90);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 18px rgba(0,0,0,.38);
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
       transition: opacity .18s ease, visibility .18s ease;
     }
-    .live-player-col.has-active-playback .player-preview-actions { display: none; }
+    .live-player-col.is-live-mode .player-playback-controls {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .live-player-col.is-live-mode #ctrl-seek-back,
+    .live-player-col.is-live-mode #ctrl-seek-forward { display: none; }
+    .live-player-col.has-active-playback .player-preview-actions { display: none !important; }
     .live-player-col.has-active-playback .player-playback-controls.visible {
       display: grid;
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
     }
-    .player-playback-controls .playback-control-btn { min-height: 38px; }
-    .player-playback-controls .player-quality-menu { grid-column: 1 / -1; }
-    .video-viewport.playback-controls-visible { cursor: default; }
-    @media (max-width: 900px) {
-      .player-playback-controls { left: 6px; right: 6px; bottom: 6px; padding: 6px; gap: 4px; }
-      .player-playback-controls .playback-control-btn { min-height: 34px; padding: 4px 3px; font-size: .65rem; }
-      .playback-control-btn svg { width: 15px; height: 15px; }
-    }
-    .playback-control-btn {
+    .player-playback-controls .playback-control-btn {
       min-width: 0;
-      min-height: 42px;
-      padding: 5px 6px;
-      border: 1px solid var(--border-panel);
-      border-radius: 10px;
-      background: #111820;
-      color: var(--text-silver);
+      min-height: 38px;
+      padding: 3px 1px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      font: 700 clamp(0.68rem, .82vw, .8rem) var(--font-family);
+      gap: 2px;
+      font-size: .58rem;
+      line-height: 1.1;
       white-space: nowrap;
+      overflow: hidden;
     }
-    .playback-control-btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
-    .playback-control-btn.is-active { color: var(--accent-gold); border-color: var(--accent-gold); }
-    .player-quality-menu {
-      display: none;
-      grid-column: 1 / -1;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 7px;
-      padding: 7px;
+    .player-playback-controls .playback-control-btn svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+    }
+    .player-playback-controls .player-quality-menu {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 7px);
+      width: min(190px, 75%);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 5px;
+      padding: 6px;
       border: 1px solid var(--border-panel);
-      border-radius: 10px;
-      background: #0A0F14;
+      border-radius: 9px;
+      background: rgba(7, 12, 18, .96);
+      box-shadow: 0 6px 18px rgba(0,0,0,.4);
+      z-index: 12;
     }
     .player-quality-menu.open { display: grid; }
-    .live-player-col.is-live-mode #ctrl-seek-back,
-    .live-player-col.is-live-mode #ctrl-seek-forward { display: none; }
+    .video-viewport.playback-controls-visible { cursor: default; }
     .player-quality-option {
-      min-height: 36px;
+      min-width: 0;
+      min-height: 32px;
       border: 1px solid var(--border-panel);
-      border-radius: 8px;
+      border-radius: 7px;
       background: #1C2A38;
       color: var(--text-silver);
-      font: 700 .78rem var(--font-family);
+      font: 700 .72rem var(--font-family);
     }
     .player-quality-option[aria-pressed="true"] { color: var(--accent-gold); border-color: var(--accent-gold); }
     @media (max-width: 900px) {
-      .live-player-col { flex-basis: 290px; width: 290px; min-width: 290px; }
-      .live-channels-col { min-width: 280px; }
-      .live-categories-col { width: 180px; }
+      .player-playback-controls { left: 4px; right: 4px; bottom: 4px; padding: 4px; gap: 3px; }
+      .player-playback-controls .playback-control-btn { min-height: 34px; font-size: .52rem; }
+      .player-playback-controls .playback-control-btn svg { width: 13px; height: 13px; }
     }
     .player-channel-title {
       font-size: clamp(1.1rem, 1.6vw, 1.35rem);
@@ -1869,31 +1881,31 @@
           <div class="player-playback-controls" id="player-playback-controls">
             <button id="btn-playback-fav" class="playback-control-btn focusable" title="إضافة للمفضلة">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              <span>المفضلة</span>
+              <span>مفضلة</span>
             </button>
             <button id="btn-open-ext-audio" class="playback-control-btn focusable" title="مصدر الصوت">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 010 6"/></svg>
-              <span id="ext-audio-btn-text">مصدر الصوت</span>
+              <span id="ext-audio-btn-text">الصوت</span>
             </button>
             <button id="ctrl-mute-btn" class="playback-control-btn focusable" title="كتم الصوت">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9l5 6m0-6l-5 6"/></svg>
-              <span id="mute-label">كتم الصوت</span>
+              <span id="mute-label">كتم</span>
             </button>
             <button id="ctrl-seek-back" class="playback-control-btn focusable" title="إرجاع 10 ثوانٍ">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 109-9 9.5 9.5 0 00-6 2.3L3 8"/><path d="M3 3v5h5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
-              <span>رجوع 10</span>
+              <span>−10</span>
             </button>
             <button id="ctrl-seek-forward" class="playback-control-btn focusable" title="تقديم 10 ثوانٍ">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12A9 9 0 1112 3a9.5 9.5 0 016 2.3L21 8"/><path d="M21 3v5h-5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
-              <span>تقديم 10</span>
+              <span>+10</span>
             </button>
             <button id="btn-toggle-subtitles" class="playback-control-btn focusable" title="الترجمة" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 10h4m-4 4h3m4-4h3m-3 4h3"/></svg>
-              <span id="subtitle-label">الترجمة</span>
+              <span id="subtitle-label">ترجمة</span>
             </button>
             <button id="btn-quality" class="playback-control-btn focusable" title="الجودة" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>
-              <span id="quality-label">الجودة</span>
+              <span id="quality-label">جودة</span>
             </button>
             <div class="player-quality-menu" id="player-quality-menu">
               <button class="player-quality-option focusable" data-quality="1080" aria-pressed="false">1080p</button>
@@ -2522,12 +2534,24 @@
         }
         this.updateUiInfo(item);
         const rect = this.viewport ? this.viewport.getBoundingClientRect() : null;
+        if (this.viewport && rect) {
+          const style = window.getComputedStyle(this.viewport);
+          console.info('[SONIXSurface] viewport before native play', JSON.stringify({
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            display: style.display, visibility: style.visibility, opacity: style.opacity,
+            viewportBackground: style.backgroundColor,
+            bodyBackground: window.getComputedStyle(document.body).backgroundColor,
+            dpr: window.devicePixelRatio,
+            webViewViewport: { width: window.innerWidth, height: window.innerHeight }
+          }));
+        }
         if (!rect || rect.width <= 0 || rect.height <= 0) {
           if (window.NativePlayback) window.NativePlayback.stop();
           this.showError('تعذر تحديد مساحة عرض الفيديو.');
           return;
         }
         // Live channels, movies and series episodes all use the same native Media3 player.
+        console.info('[SONIXSurface] sending native bounds', rect.left, rect.top, rect.width, rect.height);
         window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
         if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
         if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
@@ -3334,6 +3358,21 @@
     }
 
     function setAppMode(mode) {
+      const previousMode = currentAppMode;
+      if (previousMode !== mode) {
+        if (window.NativePlayback && typeof window.NativePlayback.stop === 'function') {
+          window.NativePlayback.stop();
+        }
+        if (videoPlaybackController) {
+          videoPlaybackController.currentItem = null;
+          videoPlaybackController.hidePlaybackControls();
+        }
+        const playerPanel = document.querySelector('.live-player-col');
+        if (playerPanel) {
+          playerPanel.classList.remove('has-active-playback');
+          playerPanel.classList.toggle('is-live-mode', mode === 'live');
+        }
+      }
       currentAppMode = mode;
       const itemsContainer = document.getElementById('channels-list-container');
       if (itemsContainer) itemsContainer.classList.toggle('media-grid', mode === 'movies' || mode === 'series');
@@ -3679,14 +3718,17 @@
       // 4. Bind Home Screen Action Cards
       document.getElementById('card-channels').addEventListener('click', () => {
         switchView('view-live');
-        let rememberedMode = 'live';
-        if (sonixSettings.rememberSection) {
-          try {
-            const saved = localStorage.getItem('sonix_last_mode_v1');
-            if (['live','movies','series'].includes(saved)) rememberedMode = saved;
-          } catch (_) {}
+        // Always reset the preview when entering the Channels card from Home.
+        if (window.NativePlayback && typeof window.NativePlayback.stop === 'function') {
+          window.NativePlayback.stop();
         }
-        setAppMode(rememberedMode);
+        if (videoPlaybackController) {
+          videoPlaybackController.currentItem = null;
+          videoPlaybackController.hidePlaybackControls();
+        }
+        const playerPanel = document.querySelector('.live-player-col');
+        if (playerPanel) playerPanel.classList.remove('has-active-playback');
+        setAppMode('live');
       });
       document.getElementById('card-movies').addEventListener('click', () => {
         switchView('view-live');
