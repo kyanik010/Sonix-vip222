@@ -155,11 +155,19 @@ class MainActivity : ComponentActivity() {
                         .setConnectTimeoutMs(15000)
                         .setReadTimeoutMs(30000)
                     val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+                    // Keep startup responsive while retaining enough buffered media to absorb
+                    // short network fluctuations common with IPTV streams.
+                    val videoLoadControl = DefaultLoadControl.Builder()
+                        .setBufferDurationsMs(10000, 50000, 2500, 5000)
+                        .build()
                     val player = ExoPlayer.Builder(this@MainActivity)
                         .setMediaSourceFactory(mediaSourceFactory)
+                        .setLoadControl(videoLoadControl)
                         .build()
                     val textureView = TextureView(this@MainActivity).apply {
-                        setBackgroundColor(Color.BLACK)
+                        // TextureView does not support View background drawables. Its opaque
+                        // surface provides a clean black frame until the first video frame.
+                        isOpaque = true
                         isFocusable = false
                         isFocusableInTouchMode = false
                     }
