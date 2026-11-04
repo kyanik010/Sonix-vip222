@@ -8,8 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <!-- HLS.js for IPTV HLS streaming -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
   <style>
     /* ==========================================================================
        0. CSS RESET & DESIGN SYSTEM VARIABLES (SONIX TV IDENTITY)
@@ -795,9 +793,6 @@
       background: #000 !important;
       aspect-ratio: auto !important;
     }
-    .video-viewport.is-fullscreen #main-video {
-      object-fit: contain !important;
-    }
     .exit-fullscreen-btn {
       display: none;
       position: absolute;
@@ -831,10 +826,6 @@
       width: 18px;
       height: 18px;
     }
-    #main-video {
-      display: none;
-    }
-
     .player-match-overlay {
       position: absolute;
       top: 14px;
@@ -1643,8 +1634,6 @@
           
           <!-- 16:9 Video Canvas Frame -->
           <div class="video-viewport">
-            <!-- Video Element -->
-            <video id="main-video" playsinline controlsList="nodownload"></video>
             <!-- Secondary Audio Element for Dual Audio System -->
             <audio id="external-audio" preload="auto"></audio>
 
@@ -1950,7 +1939,7 @@
             <div style="display:flex; flex-direction:column; gap:8px;">
               <label style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
                 <span>محرك الفيديو:</span>
-                <span style="font-weight:700; color:#fff;">HLS.js Hardware Accelerated</span>
+                <span style="font-weight:700; color:#fff;">Media3 ExoPlayer (Android Native)</span>
               </label>
               <label style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
                 <span>محرك الصوت الخارجي:</span>
@@ -2124,7 +2113,6 @@
      */
     class VideoPlaybackController {
       constructor() {
-        this.videoEl = document.getElementById('main-video');
         this.viewport = document.querySelector('.video-viewport');
         this.loaderEl = document.getElementById('player-loader');
         this.loaderText = document.getElementById('player-loader-text');
@@ -2193,6 +2181,7 @@
         this.updateUiInfo(item);
         const rect = this.viewport ? this.viewport.getBoundingClientRect() : null;
         if (!rect || rect.width <= 0 || rect.height <= 0) {
+          if (window.NativePlayback) window.NativePlayback.stop();
           this.showError('تعذر تحديد مساحة عرض الفيديو.');
           return;
         }
@@ -2253,7 +2242,6 @@
           return;
         }
         this.isMuted = !this.isMuted;
-        this.videoEl.muted = this.isMuted;
         if (window.NativePlayback) window.NativePlayback.setMuted(this.isMuted);
         showToast(this.isMuted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
       }
@@ -2361,8 +2349,8 @@
         if (!source) { showToast('يرجى اختيار قناة صوتية من beIN SPORTS أو ALWAN أولاً'); return; }
         if (!source.streamUrl) source.streamUrl = makeStreamUrl('live', source.id, {container_extension:source.containerExtension || 'ts'});
         if (!source.streamUrl || !window.NativePlayback || !window.NativePlayback.attachExternalAudio) { this.setStatus('failed', 'مصدر الصوت غير متاح'); showToast('تعذر الحصول على رابط القناة الصوتية من الاشتراك'); return; }
-        if (!this.isActive) this.originalVideoMuted = !!this.videoController.videoEl.muted;
-        this.videoController.videoEl.muted = true; this.isActive = true; this.setStatus('connecting', 'جارٍ الاتصال...');
+        if (!this.isActive) this.originalVideoMuted = !!this.videoController.isMuted;
+        this.videoController.isMuted = true; this.isActive = true; this.setStatus('connecting', 'جارٍ الاتصال...');
         this.activeBadgeEl.classList.add('visible'); this.btnExtAudio.classList.add('is-active'); this.btnExtAudioText.textContent = 'الصوت الخارجي: ' + source.name;
         window.NativePlayback.setExternalAudioVolume(this.volume); window.NativePlayback.setExternalAudioSyncOffset(this.delayMs);
         window.NativePlayback.attachExternalAudio(source.streamUrl);
@@ -2373,7 +2361,7 @@
       stopExternalAudio(showMessage = true, notifyNative = true) {
         if (notifyNative && window.NativePlayback) window.NativePlayback.detachExternalAudio();
         this.isActive = false;
-        this.videoController.videoEl.muted = this.originalVideoMuted;
+        this.videoController.isMuted = this.originalVideoMuted;
         this.originalVideoMuted = false; this.delayMs = 0; this.updateDelayLabel();
         this.activeBadgeEl.classList.remove('visible'); this.btnExtAudio.classList.remove('is-active'); this.btnExtAudioText.textContent = 'الصوت الخارجي'; this.setStatus('stopped', 'متوقف');
         if (showMessage) showToast('تم إيقاف الصوت الخارجي واستعادة صوت القناة الأساسية');
