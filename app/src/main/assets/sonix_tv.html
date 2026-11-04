@@ -2905,6 +2905,7 @@
       try {
         const result=parseNative(window.XtreamBridge.login(server,username,password));
         activeCredentials={server:server.trim().replace(/\/$/,''),username,password};
+        isOfflineCache=false;
         updateAccount(result.user_info);
         loadXtreamContent();
         document.getElementById('sonix-login-screen').classList.add('hidden');
