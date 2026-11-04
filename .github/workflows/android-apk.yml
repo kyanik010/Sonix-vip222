@@ -1,13 +1,6 @@
 name: Build SONIX TV APK
 
-concurrency:
-  group: sonix-tv-${{ github.ref }}
-  cancel-in-progress: true
-
 on:
-  push:
-    branches:
-      - fix/sonix-tv-scrolling
   workflow_dispatch:
 
 permissions:
@@ -73,17 +66,21 @@ jobs:
           import re
           from pathlib import Path
           html = Path("app/src/main/assets/sonix_tv.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S)
-          inline_scripts = [item for item in scripts if item.strip()]
+          scripts = re.findall(r'<script\\b[^>]*>(.*?)</script>', html, flags=re.I | re.S)
+          inline_scripts = [script for script in scripts if script.strip()]
           if not inline_scripts:
               raise SystemExit("No inline application script found")
           Path("/tmp/sonix-tv-inline.js").write_text("\\n".join(inline_scripts), encoding="utf-8")
+          forbidden = (
+              "MOCK_", "BigBuckBunny", "TearsOfSteel", "ForBigger",
+              "test-streams", "example.com", "محمد الأحمد",
+              "386683283365", "VIP ULTRA", "24ms"
+          )
+          found = [marker for marker in forbidden if marker in html]
+          if found:
+              raise SystemExit("Demo data remains in app HTML: " + ", ".join(found))
           PY
           node --check /tmp/sonix-tv-inline.js
-          if grep -En "MOCK_|BigBuckBunny|TearsOfSteel|ForBigger|test-streams|example\\.com|محمد الأحمد|386683283365|VIP ULTRA|24ms" app/src/main/assets/sonix_tv.html; then
-            echo "Demo data or sample playback URL remains in the user app"
-            exit 1
-          fi
 
       - name: Build APK with assembleDebug
         run: gradle :app:assembleDebug --no-daemon --stacktrace
