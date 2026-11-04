@@ -2411,6 +2411,7 @@
         this.setStatus('connecting', 'جارٍ الاتصال...');
 
         this.videoController.videoEl.muted = true;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(true);
 
         if (this.hlsAudioInstance) {
           this.hlsAudioInstance.destroy();
@@ -2464,6 +2465,7 @@
 
       restoreOriginalVideoAudio() {
         this.videoController.videoEl.muted = false;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(false);
       }
 
       adjustDelay(deltaMs) {
