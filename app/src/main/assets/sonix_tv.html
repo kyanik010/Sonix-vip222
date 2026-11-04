@@ -1864,7 +1864,7 @@
           <div class="epg-timeline-box">
             <div class="epg-card-curr">
               <span class="epg-badge-live">يُعرض الآن</span>
-              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG حتى يتم اختيار قناةdiv>
+              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG حتى يتم اختيار قناة</div>
               <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">—</div>
               <div id="epg-curr-desc" class="epg-desc">لا تتوفر تفاصيل البرنامج من الخادم.</div>
               <div class="epg-progress-bar">
@@ -2883,7 +2883,7 @@
     }
     function isNetworkFailure(error) {
       const message = String(error && error.message ? error.message : error || '');
-      return /تعذر العثور على خادم|انتهت مهلة الاتصال|تعذر الاتصال بخادم|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network|HTTP 5\\d\\d/i.test(message);
+      return /تعذر العثور على خادم|انتهت مهلة الاتصال|تعذر الاتصال بخادم|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network|HTTP 5\d\d/i.test(message);
     }
     function nativeArray(action) {
       const value = parseNative(window.XtreamBridge.load(action));
