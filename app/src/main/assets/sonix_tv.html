@@ -1900,7 +1900,7 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">اسم المستخدم:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:#fff;">محمد الأحمد</div>
+              <div id="profile-user-name" style="font-size:0.95rem; font-weight:800; color:#fff;">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">نوع الباقة:</div>
@@ -1908,11 +1908,11 @@
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">رقم المشترك (ID):</div>
-              <div style="font-size:0.95rem; font-weight:800; color:#fff; direction:ltr;">—</div>
+              <div id="profile-user-id" style="font-size:0.95rem; font-weight:800; color:#fff; direction:ltr;">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">تاريخ الانتهاء:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:var(--success-green);">—</div>
+              <div id="profile-expiry" style="font-size:0.95rem; font-weight:800; color:var(--success-green);">—</div>
             </div>
           </div>
           <div style="background:#151F2A; padding:12px; border-radius:10px; border:1px solid var(--border-panel); display:flex; justify-content:space-between; align-items:center;">
@@ -1974,6 +1974,14 @@
         <div class="modal-footer">
           <button id="close-settings-footer" class="action-btn focusable" style="background:#1C2A38; color:#fff;">إغلاق</button>
         </div>
+      </div>
+    </div>
+
+    <div id="series-episodes-modal" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header"><div class="modal-title">مواسم وحلقات المسلسل</div><button class="modal-close-btn focusable" onclick="closeAllModals()">&times;</button></div>
+        <div id="series-episodes-list" class="modal-body" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <div class="modal-footer"><button class="action-btn focusable" onclick="closeAllModals()">إغلاق</button></div>
       </div>
     </div>
 
@@ -2417,8 +2425,7 @@
         } else {
           this.audioEl.src = audioUrl;
           this.audioEl.play().catch(() => {
-            this.audioEl.src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
-            this.audioEl.play().catch(() => {});
+            this.setStatus('failed', 'تعذر تشغيل مصدر الصوت');
           });
         }
 
@@ -2867,6 +2874,9 @@
       document.getElementById('account-user-name').textContent=accountInfo.username || '—';
       document.getElementById('account-user-id').textContent=accountInfo.user_id || accountInfo.username || '—';
       document.getElementById('account-expiry').textContent=exp>0?new Date(exp*1000).toLocaleDateString('ar'):'غير محدد';
+      const pn=document.getElementById('profile-user-name'); if(pn) pn.textContent=accountInfo.username || '—';
+      const pi=document.getElementById('profile-user-id'); if(pi) pi.textContent=accountInfo.user_id || accountInfo.username || '—';
+      const pe=document.getElementById('profile-expiry'); if(pe) pe.textContent=exp>0?new Date(exp*1000).toLocaleDateString('ar'):'غير محدد';
     }
     function performXtreamLogin(server,username,password,offlineFallback) {
       const button=document.getElementById('login-submit');
@@ -2893,6 +2903,35 @@
         button.disabled=false;button.textContent='تسجيل الدخول';
       }
     }
+    function openSeriesEpisodes(item) {
+      try {
+        const data=parseNative(window.XtreamBridge.seriesInfo(item.seriesId));
+        const episodes=data.episodes || {};
+        const list=document.getElementById('series-episodes-list');
+        list.innerHTML='';
+        Object.keys(episodes).sort((a,b)=>Number(a)-Number(b)).forEach(season=>{
+          const heading=document.createElement('div');
+          heading.textContent='الموسم ' + season;
+          heading.style.cssText='padding:10px;color:var(--accent-gold);font-weight:800';
+          list.appendChild(heading);
+          (episodes[season] || []).forEach(ep=>{
+            const button=document.createElement('button');
+            button.className='action-btn focusable';
+            button.textContent='الحلقة ' + (ep.episode_num || '') + ' - ' + (ep.title || ep.id);
+            button.addEventListener('click',()=>{
+              const ext=ep.container_extension || 'mp4';
+              const url=activeCredentials.server + '/series/' + encodeURIComponent(activeCredentials.username) + '/' +
+                encodeURIComponent(activeCredentials.password) + '/' + encodeURIComponent(String(ep.id)) + '.' + ext;
+              closeAllModals();
+              selectItem({...item,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
+            });
+            list.appendChild(button);
+          });
+        });
+        if(!list.children.length) throw new Error('لا توجد حلقات متاحة لهذا المسلسل');
+        document.getElementById('series-episodes-modal').classList.add('active');
+      } catch(error) { showToast(error.message || 'تعذر تحميل الحلقات'); }
+    }
     function refreshXtreamContent() {
       try {
         if(!activeCredentials) throw new Error('سجّل الدخول أولاً');
@@ -2906,8 +2945,8 @@
      * UNIFIED CONTENT BROWSER ENGINE (CHANNELS, MOVIES, SERIES IN SAME 4 COLUMNS)
      * =========================================================================
      */
-    let currentActiveCategory = 'cat-sports';
-    let currentSelectedItem = liveChannels[0];
+    let currentActiveCategory = '';
+    let currentSelectedItem = null;
 
     function setAppMode(mode) {
       currentAppMode = mode;
@@ -2926,25 +2965,25 @@
         titleEl.textContent = 'مباشر';
         searchInput.placeholder = 'البحث في القنوات...';
         catSearchInput.placeholder = 'البحث في فئات القنوات...';
-        currentActiveCategory = 'cat-sports';
-        currentSelectedItem = liveChannels[0];
+        currentActiveCategory = liveCategories[0] ? liveCategories[0].id : '';
+        currentSelectedItem = liveChannels[0] || null;
       } else if (mode === 'movies') {
         titleEl.textContent = 'الأفلام (VOD)';
         searchInput.placeholder = 'البحث في الأفلام...';
         catSearchInput.placeholder = 'البحث في تصنيفات الأفلام...';
-        currentActiveCategory = 'mv-action';
-        currentSelectedItem = movies[0];
+        currentActiveCategory = movieCategories[0] ? movieCategories[0].id : '';
+        currentSelectedItem = movies[0] || null;
       } else if (mode === 'series') {
         titleEl.textContent = 'المسلسلات (Series)';
         searchInput.placeholder = 'البحث في المسلسلات...';
         catSearchInput.placeholder = 'البحث في تصنيفات المسلسلات...';
-        currentActiveCategory = 'sr-top';
-        currentSelectedItem = series[0];
+        currentActiveCategory = seriesCategories[0] ? seriesCategories[0].id : '';
+        currentSelectedItem = series[0] || null;
       }
 
       renderCategories();
       renderItems();
-      videoPlaybackController.loadItem(currentSelectedItem);
+      if (currentSelectedItem && currentSelectedItem.streamUrl) videoPlaybackController.loadItem(currentSelectedItem);
     }
 
     function getActiveCategoryList() {
@@ -2973,7 +3012,7 @@
         item.tabIndex = 0;
         item.dataset.catId = cat.id;
 
-        const count = cat.id === 'cat-fav' 
+        const count = cat.id === 'favorites' 
           ? memoryFavorites.size 
           : allItems.filter(c => c.category === cat.id).length;
 
@@ -3013,7 +3052,7 @@
       const allItems = getActiveItemList();
       let items = [];
 
-      if (currentActiveCategory === 'cat-fav') {
+      if (currentActiveCategory === 'favorites') {
         items = allItems.filter(c => memoryFavorites.has(c.id));
       } else {
         items = allItems.filter(c => c.category === currentActiveCategory);
@@ -3086,8 +3125,10 @@
         el.classList.toggle('selected', el.dataset.itemId === item.id);
       });
 
+      if (currentAppMode === 'series' && item.seriesId) { openSeriesEpisodes(item); return; }
+      if (!item.streamUrl) { showToast('رابط التشغيل غير متوفر من الخادم'); return; }
       videoPlaybackController.loadItem(item);
-      showToast(`تم الاختيار: ${item.name}`);
+      showToast('تم الاختيار: ' + item.name);
     }
 
     function renderAudioSourcePicker(filterText = '') {
