@@ -3702,29 +3702,44 @@
 
       try {
         const saved=parseNative(window.XtreamBridge.savedCredentials());
-        document.getElementById('login-server').value=saved.server || '';
-        document.getElementById('login-username').value=saved.username || '';
+        if (!saved.server || !saved.username) throw new Error('لا يوجد اشتراك محفوظ');
+
+        document.getElementById('login-server').value=saved.server;
+        document.getElementById('login-username').value=saved.username;
         activeCredentials={server:saved.server,username:saved.username};
-        try {
-          const restored=parseNative(window.XtreamBridge.restoreSession());
-          isOfflineCache=false;
-          updateAccount(restored.user_info);
-          loadXtreamContent();
-          document.getElementById('sonix-login-screen').classList.add('hidden');
-        } catch (restoreError) {
-          // A successful previous login is persistent: never ask for credentials again
-          // merely because the provider is temporarily unreachable or rejects a restore.
-          const hasCache=restoreXtreamCache();
-          isOfflineCache=hasCache;
-          updateAccount({username:saved.username});
-          document.getElementById('sonix-login-screen').classList.add('hidden');
-          if(hasCache) {
-            renderCategories();renderItems();renderAudioSourcePicker();
-            showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
-          } else {
-            showToast(restoreError.message || 'تعذر الاتصال بالاشتراك المحفوظ');
-          }
+
+        // Show the last locally cached content before making any network request.
+        const hasCache=restoreXtreamCache();
+        isOfflineCache=hasCache;
+        updateAccount({username:saved.username});
+        document.getElementById('sonix-login-screen').classList.add('hidden');
+        if (hasCache) {
+          renderCategories();
+          renderItems();
+          renderAudioSourcePicker();
         }
+
+        // Let WebView paint the cached screen first. Session validation and provider
+        // content refresh are deliberately deferred so a slow IPTV server cannot
+        // leave the app showing only its native background during startup.
+        window.setTimeout(() => {
+          try {
+            const restored=parseNative(window.XtreamBridge.restoreSession());
+            isOfflineCache=false;
+            updateAccount(restored.user_info);
+            loadXtreamContent();
+          } catch (restoreError) {
+            isOfflineCache=hasCache;
+            updateAccount({username:saved.username});
+            if (hasCache) {
+              const cacheNote=document.getElementById('cache-status');
+              if(cacheNote) cacheNote.style.display='block';
+              showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
+            } else {
+              showToast(restoreError.message || 'تعذر الاتصال بالاشتراك المحفوظ');
+            }
+          }
+        }, 150);
       } catch (_) {
         activeCredentials=null;
         document.getElementById('sonix-login-screen').classList.remove('hidden');
