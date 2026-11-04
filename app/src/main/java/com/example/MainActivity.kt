@@ -30,6 +30,8 @@ class MainActivity : ComponentActivity() {
     private var rootContainer: FrameLayout? = null
     private var nativePlayer: ExoPlayer? = null
     private var nativePlayerView: PlayerView? = null
+    @Volatile private var nativePlayerActive = false
+    @Volatile private var nativePlayerPlaying = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +117,11 @@ class MainActivity : ComponentActivity() {
                         leftMargin = (left * density).roundToInt()
                         topMargin = (top * density).roundToInt()
                     }
+                    val mediaUri = Uri.parse(url)
+                    require((mediaUri.scheme == "http" || mediaUri.scheme == "https") && !mediaUri.host.isNullOrBlank()) {
+                        "رابط البث غير صالح"
+                    }
+                    val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
                     val player = ExoPlayer.Builder(this@MainActivity).build()
                     val view = PlayerView(this@MainActivity).apply {
                         useController = false
@@ -126,7 +133,9 @@ class MainActivity : ComponentActivity() {
                     }
                     nativePlayer = player
                     nativePlayerView = view
-                    rootContainer?.addView(view, params)
+                    nativePlayerActive = true
+                    nativePlayerPlaying = false
+                    container.addView(view, params)
                     view.bringToFront()
                     player.addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -134,13 +143,16 @@ class MainActivity : ComponentActivity() {
                                 webView?.evaluateJavascript("window.onNativePlaybackReady && window.onNativePlaybackReady()", null)
                             }
                         }
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            nativePlayerPlaying = isPlaying
+                        }
                         override fun onPlayerError(error: PlaybackException) {
                             stopNativePlayer()
-                            val message = JSONObject.quote("فشل تشغيل بث MPEG-TS: " + (error.message ?: "خطأ غير معروف"))
+                            val message = JSONObject.quote("فشل تشغيل البث: " + (error.message ?: "خطأ غير معروف"))
                             webView?.evaluateJavascript("window.onNativePlaybackError && window.onNativePlaybackError($message)", null)
                         }
                     })
-                    player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                    player.setMediaItem(MediaItem.fromUri(mediaUri))
                     player.prepare()
                     player.playWhenReady = true
                 } catch (error: Exception) {
@@ -162,10 +174,10 @@ class MainActivity : ComponentActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun isPlaying(): Boolean = nativePlayer?.isPlaying == true
+        fun isPlaying(): Boolean = nativePlayerPlaying
 
         @android.webkit.JavascriptInterface
-        fun isActive(): Boolean = nativePlayer != null
+        fun isActive(): Boolean = nativePlayerActive
 
         @android.webkit.JavascriptInterface
         fun pause() { runOnUiThread { nativePlayer?.pause() } }
@@ -196,6 +208,8 @@ class MainActivity : ComponentActivity() {
         nativePlayerView = null
         nativePlayer?.release()
         nativePlayer = null
+        nativePlayerActive = false
+        nativePlayerPlaying = false
     }
 
     class WebAppInterface(private val activity: MainActivity) {

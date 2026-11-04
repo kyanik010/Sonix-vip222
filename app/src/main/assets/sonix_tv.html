@@ -2185,16 +2185,29 @@
         }
 
         if (window.NativePlayback) window.NativePlayback.stop();
+        this.videoEl.pause();
+        this.videoEl.removeAttribute('src');
+        this.videoEl.load();
         const streamUrl = item.streamUrl;
-        const isTs = streamUrl && streamUrl.toLowerCase().split('?')[0].endsWith('.ts');
-        if (isTs && window.NativePlayback) {
+        if (!streamUrl) {
+          this.showError('رابط البث غير متوفر من الاشتراك.');
+          return;
+        }
+        const normalizedUrl = streamUrl.toLowerCase().split('?')[0];
+        const isTs = normalizedUrl.endsWith('.ts');
+        const isM3u8 = normalizedUrl.endsWith('.m3u8');
+        const nativeFallback = isM3u8 && !(window.Hls && window.Hls.isSupported());
+        if ((isTs || nativeFallback) && window.NativePlayback) {
           const viewport = document.querySelector('.video-viewport');
+          if (!viewport) {
+            this.showError('تعذر تحديد مساحة عرض الفيديو.');
+            return;
+          }
           const rect = viewport.getBoundingClientRect();
           window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
           this.updateUiInfo(item);
           return;
         }
-        const isM3u8 = streamUrl && streamUrl.includes('.m3u8');
 
         if (isM3u8 && window.Hls && Hls.isSupported()) {
           this.hlsInstance = new Hls({
@@ -3338,7 +3351,7 @@
     let remoteNavigator;
 
     window.onNativePlaybackReady = function() { if (videoPlaybackController) videoPlaybackController.hideLoader(); };
-    window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل بث MPEG-TS'); };
+    window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل البث'); };
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('login-submit').addEventListener('click', () => performXtreamLogin(
