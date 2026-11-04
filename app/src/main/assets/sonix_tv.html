@@ -1904,8 +1904,8 @@
               <div id="profile-user-name" style="font-size:0.95rem; font-weight:800; color:#fff;">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
-              <div style="font-size:0.75rem; color:var(--text-muted);">نوع الباقة:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:var(--accent-gold);">—</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">حالة الاشتراك:</div>
+              <div id="profile-package" style="font-size:0.95rem; font-weight:800; color:var(--accent-gold);">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">رقم المشترك (ID):</div>
@@ -1918,7 +1918,7 @@
           </div>
           <div style="background:#151F2A; padding:12px; border-radius:10px; border:1px solid var(--border-panel); display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:0.85rem;">حالة اتصال الخادم (Server Ping):</span>
-            <span style="font-size:0.85rem; font-weight:800; color:var(--success-green);">غير متصل</span>
+            <span id="profile-server-status" style="font-size:0.85rem; font-weight:800; color:var(--text-muted);">—</span>
           </div>
         </div>
         <div class="modal-footer">
@@ -2896,6 +2896,8 @@
       const pn=document.getElementById('profile-user-name'); if(pn) pn.textContent=accountInfo.username || '—';
       const pi=document.getElementById('profile-user-id'); if(pi) pi.textContent=accountInfo.user_id || accountInfo.username || '—';
       const pe=document.getElementById('profile-expiry'); if(pe) pe.textContent=exp>0?new Date(exp*1000).toLocaleDateString('ar'):'غير محدد';
+      const pp=document.getElementById('profile-package'); if(pp) pp.textContent=accountInfo.status || '—';
+      const ps=document.getElementById('profile-server-status'); if(ps) ps.textContent=isOfflineCache?'بيانات مخزنة سابقاً':'تم التحقق من الاشتراك';
     }
     function performXtreamLogin(server,username,password,offlineFallback) {
       const button=document.getElementById('login-submit');
