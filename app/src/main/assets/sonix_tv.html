@@ -2972,6 +2972,7 @@
     let currentRenderedCount = 0;
     let channelRenderGeneration = 0;
     const CHANNEL_RENDER_BATCH_SIZE = 80;
+    const CHANNEL_RENDER_PREFETCH_PX = 420;
 
     function appendChannelRows() {
       const container = document.getElementById('channels-list-container');
@@ -3148,20 +3149,14 @@
       currentRenderedItems = items;
       if (!container.dataset.incrementalScrollBound) {
         container.addEventListener('scroll', () => {
-          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 420) loadMoreChannelRows();
+          const remainingScroll = container.scrollHeight - container.clientHeight - container.scrollTop;
+          if (remainingScroll <= CHANNEL_RENDER_PREFETCH_PX) loadMoreChannelRows();
         }, { passive: true });
         container.dataset.incrementalScrollBound = 'true';
       }
-      const generation = channelRenderGeneration;
-      const renderNextBatch = () => {
-        if (generation !== channelRenderGeneration) return;
-        appendChannelRows();
-        if (currentRenderedCount < currentRenderedItems.length) {
-          if ('requestAnimationFrame' in window) requestAnimationFrame(renderNextBatch);
-          else setTimeout(renderNextBatch, 16);
-        }
-      };
-      renderNextBatch();
+      // Render only the first batch. Further batches are requested by actual
+      // scrolling or by DPAD navigation at the end of the rendered rows.
+      appendChannelRows();
     }
 
     function loadLiveEpg(item) {
