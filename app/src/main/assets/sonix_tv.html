@@ -2226,13 +2226,9 @@
       }
 
       togglePlayPause() {
-        if (this.videoEl.paused) {
-          this.videoEl.play();
-          showToast('تم استئناف البث');
-        } else {
-          this.videoEl.pause();
-          showToast('تم الإيقاف المؤقت');
-        }
+        if (window.NativePlayback && window.NativePlayback.isActive()) { window.NativePlayback.toggle(); showToast('تم تبديل حالة التشغيل'); return; }
+        if (this.videoEl.paused) { this.videoEl.play(); showToast('تم استئناف البث'); }
+        else { this.videoEl.pause(); showToast('تم الإيقاف المؤقت'); }
       }
 
       toggleMute() {
@@ -2241,13 +2237,13 @@
           return;
         }
         this.videoEl.muted = !this.videoEl.muted;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(this.videoEl.muted);
         showToast(this.videoEl.muted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
       }
 
       pause() {
-        if (this.videoEl && !this.videoEl.paused) {
-          this.videoEl.pause();
-        }
+        if (this.videoEl && !this.videoEl.paused) this.videoEl.pause();
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.pause();
       }
 
       toggleFullscreen() {
@@ -2255,6 +2251,7 @@
         if (!container) return;
         this.isFullscreen = !this.isFullscreen;
         container.classList.toggle('is-fullscreen', this.isFullscreen);
+        if (window.NativePlayback && window.NativePlayback.isActive()) { const r=container.getBoundingClientRect(); window.NativePlayback.resize(r.left,r.top,r.width,r.height); }
 
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
@@ -2307,6 +2304,7 @@
       }
 
       stopAndRelease() {
+        if (window.NativePlayback) window.NativePlayback.stop();
         if (this.hlsInstance) {
           this.hlsInstance.destroy();
           this.hlsInstance = null;
@@ -3237,6 +3235,9 @@
     let videoPlaybackController;
     let dualAudioEngine;
     let remoteNavigator;
+
+    window.onNativePlaybackReady = function() { if (videoPlaybackController) videoPlaybackController.hideLoader(); };
+    window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل بث MPEG-TS'); };
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('login-submit').addEventListener('click', () => performXtreamLogin(
