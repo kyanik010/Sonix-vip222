@@ -146,7 +146,7 @@ class XtreamBridge(context: Context) {
             val stream = if (statusCode in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (statusCode !in 200..299) {
-                throw IllegalStateException("فشل اتصال الخادم (HTTP $statusCode)")
+                throw IllegalStateException("استجابة الخادم غير ناجحة (HTTP $statusCode)")
             }
             if (body.isBlank()) throw IllegalStateException("أعاد الخادم استجابة فارغة")
             body
