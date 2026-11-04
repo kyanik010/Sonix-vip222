@@ -275,22 +275,22 @@ fun ProfileDialog(onDismiss: () -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(SonixBgScreen).padding(10.dp)) {
                         Text("اسم المستخدم:", color = SonixTextMuted, fontSize = 10.sp)
-                        Text("محمد الأحمد", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("—", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     Column(modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(SonixBgScreen).padding(10.dp)) {
-                        Text("نوع الباقة:", color = SonixTextMuted, fontSize = 10.sp)
-                        Text("VIP ULTRA 4K", color = SonixAccentGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("حالة الاشتراك:", color = SonixTextMuted, fontSize = 10.sp)
+                        Text("—", color = SonixAccentGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(SonixBgScreen).padding(10.dp)) {
                         Text("رقم المشترك:", color = SonixTextMuted, fontSize = 10.sp)
-                        Text("386683283365", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("—", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                     }
                     Column(modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(SonixBgScreen).padding(10.dp)) {
                         Text("تاريخ الانتهاء:", color = SonixTextMuted, fontSize = 10.sp)
-                        Text("٠٧/١٢/٢٠٢٦", color = SonixSuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("غير محدد", color = SonixTextSilver, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -299,7 +299,7 @@ fun ProfileDialog(onDismiss: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("حالة اتصال السيرفر:", color = SonixTextSilver, fontSize = 12.sp)
-                    Text("متصل • 24ms", color = SonixSuccessGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("غير متحقق", color = SonixTextMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End), colors = ButtonDefaults.buttonColors(containerColor = SonixSelectedItemBg)) {
@@ -312,7 +312,7 @@ fun ProfileDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun SettingsDialog(onDismiss: () -> Unit) {
-    var serverUrl by remember { mutableStateOf("http://iptv.server.com:8080") }
+    var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -324,7 +324,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = null, tint = SonixTextSilver) }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("ربط اشتراك IPTV حقيقي (Xtream Codes / M3U):", color = SonixFocusBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("تسجيل الدخول عبر Xtream Codes:", color = SonixFocusBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = serverUrl,
@@ -349,7 +349,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = SonixFocusBlue)) {
-                    Text("حفظ واختبار الاتصال", color = SonixBgScreen, fontWeight = FontWeight.ExtraBold)
+                    Text("إغلاق", color = SonixBgScreen, fontWeight = FontWeight.ExtraBold)
                 }
             }
         }

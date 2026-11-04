@@ -502,6 +502,7 @@
     /* 4-COLUMN MAIN CONTENT (PROPORTIONS: 4% Sidebar, 22% Categories, 28% Channels/Items, 46% Player/Details) */
     .live-main-content {
       flex: 1;
+      min-height: 0;
       display: flex;
       overflow: hidden;
       width: 100%;
@@ -575,6 +576,7 @@
     /* Column 2: Categories Column (~22%) */
     .live-categories-col {
       width: clamp(190px, 22vw, 270px);
+      min-height: 0;
       background: #0E141B;
       border-left: 1px solid var(--border-panel);
       display: flex;
@@ -604,7 +606,7 @@
     }
     .categories-list {
       flex: 1;
-      height: 100%;
+      min-height: 0;
       overflow-y: auto !important;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
@@ -651,6 +653,7 @@
     /* Column 3: Items / Channels Column (~28%) */
     .live-channels-col {
       width: clamp(230px, 28vw, 360px);
+      min-height: 0;
       background: #111820;
       border-left: 1px solid var(--border-panel);
       display: flex;
@@ -682,7 +685,7 @@
     }
     .channels-list {
       flex: 1;
-      height: 100%;
+      min-height: 0;
       overflow-y: auto !important;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
@@ -758,6 +761,7 @@
     /* Column 4: Player / Details Column (~46%) */
     .live-player-col {
       flex: 1;
+      min-height: 0;
       background: #0A0F14;
       display: flex;
       flex-direction: column;
@@ -1369,10 +1373,28 @@
     #toast-msg.show {
       transform: translateX(-50%) translateY(0);
     }
+    #sonix-login-screen{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#0B1118,#1A2430)}
+    #sonix-login-screen.hidden{display:none}
+    .sonix-login-card{width:min(520px,92vw);padding:28px;border-radius:22px;background:rgba(17,24,32,.97);border:1px solid rgba(143,184,232,.28);box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:14px}
+    .sonix-login-card input{width:100%;height:46px;border-radius:9px;padding:0 14px;background:#0A0F14;color:#fff;border:1px solid #1E2A36;font:inherit;direction:ltr;text-align:left}
+    .sonix-login-card button{min-height:46px;border:0;border-radius:9px;background:var(--accent-gold);color:#0A0F14;font:inherit;font-weight:900}
+    #sonix-login-message{min-height:24px;color:var(--danger-red);font-size:.85rem;text-align:center}
+    .provider-logo{width:30px;height:30px;object-fit:contain;border-radius:5px}
   </style>
 </head>
 <body>
 
+  <section id="sonix-login-screen" aria-label="تسجيل الدخول">
+    <div class="sonix-login-card">
+      <div class="sonix-brand" style="align-items:center"><div class="sonix-title-row"><span class="sonix-text">SONIX</span><span class="tv-text">TV</span></div><span class="stream-subtitle">XTREAM CODES</span></div>
+      <div style="text-align:center;color:var(--text-silver)">أدخل بيانات اشتراك IPTV للاتصال بالخادم</div>
+      <input id="login-server" class="focusable" type="url" autocomplete="url" placeholder="عنوان السيرفر https://server:port">
+      <input id="login-username" class="focusable" type="text" autocomplete="username" placeholder="اسم المستخدم">
+      <input id="login-password" class="focusable" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+      <button id="login-submit" class="focusable" type="button">تسجيل الدخول</button>
+      <div id="sonix-login-message" role="status"></div>
+    </div>
+  </section>
   <!-- Ambient Wave Layer -->
   <div class="ambient-waves"></div>
 
@@ -1490,19 +1512,20 @@
         <div class="user-card focusable" id="user-info-card" tabindex="0">
           <div class="user-card-item">
             <span class="user-card-label">اسم المستخدم:</span>
-            <span class="user-card-name">محمد الأحمد (VIP)</span>
+            <span class="user-card-name" id="account-user-name">—</span>
           </div>
           <div class="user-card-divider"></div>
           <div class="user-card-item">
             <span class="user-card-label">رقم المشترك:</span>
-            <span class="user-card-id">386683283365</span>
+            <span class="user-card-id" id="account-user-id">—</span>
           </div>
           <div class="user-card-divider"></div>
           <div class="user-card-item">
             <span class="user-card-label">تاريخ انتهاء الصلاحية:</span>
-            <span class="user-card-date">٠٧/١٢/٢٠٢٦</span>
+            <span class="user-card-date" id="account-expiry">—</span>
           </div>
         </div>
+        <div id="cache-status" class="cached-data-note" style="display:none;">بيانات مخزنة سابقاً — قد لا تعكس آخر تحديث من الخادم</div>
       </div>
 
     </div>
@@ -1544,9 +1567,9 @@
         <!-- Left: Now Playing Ticker -->
         <div class="now-playing-ticker">
           <span class="ticker-label">أنت تشاهد:</span>
-          <span id="ticker-cat" style="color:var(--text-silver);">beIN SPORTS HD</span>
+          <span id="ticker-cat" style="color:var(--text-silver);">—</span>
           <span class="ticker-sep">&gt;&gt;</span>
-          <span id="ticker-ch" class="ticker-channel">beIN SPORTS 1 HD</span>
+          <span id="ticker-ch" class="ticker-channel">—</span>
         </div>
       </div>
 
@@ -1610,8 +1633,8 @@
         <!-- 3. Items Column (~28%) -->
         <div class="live-channels-col">
           <div class="channels-header-badge">
-            <div id="channels-badge-name" class="channels-header-text">beIN SPORTS HD</div>
-            <div id="channels-badge-count" class="channels-count-tag">١٤ قناة</div>
+            <div id="channels-badge-name" class="channels-header-text">التصنيفات</div>
+            <div id="channels-badge-count" class="channels-count-tag">0 قناة</div>
           </div>
           <div id="channels-list-container" class="channels-list">
             <!-- Dynamically populated rows -->
@@ -1639,8 +1662,8 @@
             <!-- Top Left Match Score / Status Overlay -->
             <div id="player-score-overlay" class="player-match-overlay">
               <span class="live-pill">LIVE</span>
-              <span class="match-score">0 - 2</span>
-              <span class="match-time">55:07</span>
+              <span class="match-score">—</span>
+              <span class="match-time">—</span>
             </div>
 
             <!-- Top Right External Audio Active Indicator -->
@@ -1669,7 +1692,7 @@
 
           <!-- Channel / Content Info Row -->
           <div class="player-info-row">
-            <div id="player-ch-name" class="player-channel-title">beIN SPORTS 1 HD</div>
+            <div id="player-ch-name" class="player-channel-title">—</div>
             <button id="player-heart-btn" class="player-fav-btn focusable" title="إضافة للمفضلة">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
@@ -1680,11 +1703,11 @@
           <!-- Metadata Box for VOD (Movies / Series) -->
           <div id="player-vod-meta-box" class="vod-meta-box" style="display:none;">
             <div class="vod-meta-row">
-              <span id="vod-rating-tag" class="vod-rating-pill">★ 8.6/10</span>
-              <span id="vod-specs-tag" style="color:var(--focus-blue); font-weight:700;">4K HDR • 166 دقيقة</span>
-              <span id="vod-cat-tag" style="color:var(--text-silver);">خيال علمي</span>
+              <span id="vod-rating-tag" class="vod-rating-pill">—</span>
+              <span id="vod-specs-tag" style="color:var(--focus-blue); font-weight:700;">—</span>
+              <span id="vod-cat-tag" style="color:var(--text-silver);">—</span>
             </div>
-            <div id="vod-desc-text" class="vod-synopsis">يواصل بول أتريدس رحلته الأسطورية متحالفا مع تشاني وفريمن للانتقام من المتآمرين الذين دمروا عائلته.</div>
+            <div id="vod-desc-text" class="vod-synopsis">لا يتوفر وصف لهذا المحتوى.</div>
           </div>
 
           <!-- Action Buttons: EPG / Play Movie + Favorites + Dual Audio -->
@@ -1729,10 +1752,10 @@
                   <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
                 </svg>
               </button>
-              <span id="player-quality-label" style="font-weight:700; color:var(--focus-blue);">FHD 1080p 60fps</span>
+              <span id="player-quality-label" style="font-weight:700; color:var(--focus-blue);">جودة البث من الخادم</span>
             </div>
             <div class="quick-ctrl-group">
-              <span id="player-buffer-info" style="color:var(--text-muted); font-size:0.72rem;">HLS Live Stream</span>
+              <span id="player-buffer-info" style="color:var(--text-muted); font-size:0.72rem;">مصدر البث</span>
               <button id="ctrl-fullscreen-btn" class="ctrl-icon-btn focusable" title="ملء الشاشة">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
@@ -1833,7 +1856,7 @@
         <div class="modal-header">
           <div class="modal-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-            <span id="epg-modal-channel-name">دليل البرامج - beIN SPORTS 1 HD</span>
+            <span id="epg-modal-channel-name">دليل البرامج</span>
           </div>
           <button id="close-epg" class="modal-close-btn focusable">&times;</button>
         </div>
@@ -1841,18 +1864,18 @@
           <div class="epg-timeline-box">
             <div class="epg-card-curr">
               <span class="epg-badge-live">يُعرض الآن</span>
-              <div id="epg-curr-title" class="epg-title">الاستوديو التحليلي - دوري أبطال أوروبا</div>
-              <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">٢٠:٣٠ - ٢٣:١٥ (متبقي ٤٢ دقيقة)</div>
-              <div id="epg-curr-desc" class="epg-desc">تغطية خاصة ومباشرة لقمة مباريات الليلة مع نخبة من ألمع نجوم التحليل الرياضي في العالم العربي.</div>
+              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG حتى يتم اختيار قناة</div>
+              <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">—</div>
+              <div id="epg-curr-desc" class="epg-desc">لا تتوفر تفاصيل البرنامج من الخادم.</div>
               <div class="epg-progress-bar">
-                <div id="epg-progress-percent" class="epg-progress-fill" style="width:65%;"></div>
+                <div id="epg-progress-percent" class="epg-progress-fill" style="width:0%;"></div>
               </div>
             </div>
 
             <div style="background:#0A0F14; border:1px solid var(--border-panel); border-radius:12px; padding:12px 16px;">
               <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">البرنامج التالي:</div>
-              <div id="epg-next-title" style="font-size:0.95rem; font-weight:800; color:#fff; margin-top:2px;">حصاد الأهداف وملخص الجولة</div>
-              <div id="epg-next-time" style="font-size:0.78rem; color:var(--text-silver); margin-top:2px;">٢٣:١٥ - ٠٠:٣٠</div>
+              <div id="epg-next-title" style="font-size:0.95rem; font-weight:800; color:#fff; margin-top:2px;">لا تتوفر بيانات للبرنامج التالي</div>
+              <div id="epg-next-time" style="font-size:0.78rem; color:var(--text-silver); margin-top:2px;">—</div>
             </div>
           </div>
         </div>
@@ -1878,24 +1901,24 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">اسم المستخدم:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:#fff;">محمد الأحمد</div>
+              <div id="profile-user-name" style="font-size:0.95rem; font-weight:800; color:#fff;">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
-              <div style="font-size:0.75rem; color:var(--text-muted);">نوع الباقة:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:var(--accent-gold);">VIP ULTRA 4K STREAM</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">حالة الاشتراك:</div>
+              <div id="profile-package" style="font-size:0.95rem; font-weight:800; color:var(--accent-gold);">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">رقم المشترك (ID):</div>
-              <div style="font-size:0.95rem; font-weight:800; color:#fff; direction:ltr;">386683283365</div>
+              <div id="profile-user-id" style="font-size:0.95rem; font-weight:800; color:#fff; direction:ltr;">—</div>
             </div>
             <div style="background:#0A0F14; padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
               <div style="font-size:0.75rem; color:var(--text-muted);">تاريخ الانتهاء:</div>
-              <div style="font-size:0.95rem; font-weight:800; color:var(--success-green);">٠٧/١٢/٢٠٢٦</div>
+              <div id="profile-expiry" style="font-size:0.95rem; font-weight:800; color:var(--success-green);">—</div>
             </div>
           </div>
           <div style="background:#151F2A; padding:12px; border-radius:10px; border:1px solid var(--border-panel); display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:0.85rem;">حالة اتصال الخادم (Server Ping):</span>
-            <span style="font-size:0.85rem; font-weight:800; color:var(--success-green);">متصل • 24ms</span>
+            <span id="profile-server-status" style="font-size:0.85rem; font-weight:800; color:var(--text-muted);">—</span>
           </div>
         </div>
         <div class="modal-footer">
@@ -1936,9 +1959,9 @@
           </div>
 
           <div style="border-top:1px solid var(--border-panel); padding-top:12px;">
-            <div style="font-size:0.88rem; font-weight:800; color:var(--focus-blue); margin-bottom:8px;">ربط اشتراك IPTV حقيقي (Xtream / M3U):</div>
+            <div style="font-size:0.88rem; font-weight:800; color:var(--focus-blue); margin-bottom:8px;">ربط اشتراك IPTV حقيقي (Xtream Codes):</div>
             <div style="display:flex; flex-direction:column; gap:8px;">
-              <input type="text" id="iptv-server-url" class="search-input focusable" style="border-radius:8px;" placeholder="رابط الخادم (Server URL): http://example.com:8080" />
+              <input type="text" id="iptv-server-url" class="search-input focusable" style="border-radius:8px;" placeholder="رابط الخادم (Server URL)" />
               <div style="display:flex; gap:8px;">
                 <input type="text" id="iptv-username" class="search-input focusable" style="border-radius:8px;" placeholder="اسم المستخدم (Username)" />
                 <input type="password" id="iptv-password" class="search-input focusable" style="border-radius:8px;" placeholder="كلمة المرور (Password)" />
@@ -1952,6 +1975,14 @@
         <div class="modal-footer">
           <button id="close-settings-footer" class="action-btn focusable" style="background:#1C2A38; color:#fff;">إغلاق</button>
         </div>
+      </div>
+    </div>
+
+    <div id="series-episodes-modal" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header"><div class="modal-title">مواسم وحلقات المسلسل</div><button class="modal-close-btn focusable" onclick="closeAllModals()">&times;</button></div>
+        <div id="series-episodes-list" class="modal-body" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <div class="modal-footer"><button class="action-btn focusable" onclick="closeAllModals()">إغلاق</button></div>
       </div>
     </div>
 
@@ -2027,345 +2058,59 @@
     let currentAppMode = 'live';
 
     // 1. LIVE CHANNELS
-    const MOCK_CATEGORIES = [
-      { id: 'cat-sports', name: 'AR | الرياضة SPORTS', count: 18 },
-      { id: 'cat-bein-4k', name: 'beIN SPORTS 4K 3840p', count: 4 },
-      { id: 'cat-bein-hd', name: 'beIN SPORTS HD', count: 12 },
-      { id: 'cat-ssc', name: 'SSC SPORTS HD', count: 8 },
-      { id: 'cat-news', name: 'AR | الاخبار NEWS', count: 14 },
-      { id: 'cat-docs', name: 'AR | الوثائقيات DOCS', count: 10 },
-      { id: 'cat-ent', name: 'AR | ترفيه ومنوعات ENTERTAINMENT', count: 16 },
-      { id: 'cat-4k', name: '4K & 8K ULTRA HD', count: 6 },
-      { id: 'cat-events', name: 'EVENT ONLY (أحداث حصرية)', count: 5 },
-      { id: 'cat-fav', name: 'المفضلة (FAVORITES)', count: 0 }
-    ];
-
-    const MOCK_CHANNELS = [
-      {
-        id: 'ch-1',
-        number: 1,
-        name: 'beIN SPORTS 1 HD',
-        category: 'cat-sports',
-        categoryName: 'AR | الرياضة SPORTS',
-        logoText: 'B1',
-        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        audioOnlyUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        epgTitle: 'الاستوديو التحليلي - دوري أبطال أوروبا',
-        epgDesc: 'تغطية تحليلية لمباريات الليلة مع نخبة من المحللين الرياضيين.',
-        epgNext: 'حصاد الأهداف وملخص الجولة'
-      },
-      {
-        id: 'ch-2',
-        number: 2,
-        name: 'beIN SPORTS 2 HD',
-        category: 'cat-sports',
-        categoryName: 'AR | الرياضة SPORTS',
-        logoText: 'B2',
-        streamUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-        audioOnlyUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-        epgTitle: 'الدوري الإنجليزي الممتاز - مباشر',
-        epgDesc: 'البث المباشر لأقوى مباريات الجولة من البريميرليغ.',
-        epgNext: 'عالم الدوري الإنجليزي'
-      },
-      {
-        id: 'ch-3',
-        number: 3,
-        name: 'beIN SPORTS 3 HD',
-        category: 'cat-sports',
-        categoryName: 'AR | الرياضة SPORTS',
-        logoText: 'B3',
-        streamUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-        audioOnlyUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-        epgTitle: 'الدوري الإسباني - لا ليغا',
-        epgDesc: 'مباراة مباشرة مع الاستوديو التحليلي من مدريد.',
-        epgNext: 'أهداف الجولة الإسبانية'
-      },
-      {
-        id: 'ch-4',
-        number: 4,
-        name: 'beIN SPORTS 4K 3840p',
-        category: 'cat-bein-4k',
-        categoryName: 'beIN SPORTS 4K 3840p',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        audioOnlyUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        epgTitle: 'البث الفائق 4K - قمة الأسبوع',
-        epgDesc: 'أعلى دقة تصوير 3840p مع تقنية HDR والصوت المحيطي.',
-        epgNext: 'ملخصات المباريات بتقنية 4K'
-      },
-      {
-        id: 'ch-5',
-        number: 5,
-        name: 'SSC 1 SPORTS HD',
-        category: 'cat-ssc',
-        categoryName: 'SSC SPORTS HD',
-        logoText: 'SSC',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        audioOnlyUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        epgTitle: 'دوري روشن السعودي للمحترفين',
-        epgDesc: 'مباراة الجولة بين فريقي الهلال والنصر.',
-        epgNext: 'برنامج برا 18'
-      },
-      {
-        id: 'ch-6',
-        number: 6,
-        name: 'AR | الجزيرة الاخبارية NEWS',
-        category: 'cat-news',
-        categoryName: 'AR | الاخبار NEWS',
-        logoText: 'JAZ',
-        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        audioOnlyUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        epgTitle: 'نشرة الأخبار الرئيسية - منتصف اليوم',
-        epgDesc: 'متابعة شاملة لآخر التطورات السياسية في الشرق الأوسط والعالم.',
-        epgNext: 'ما وراء الخبر'
-      },
-      {
-        id: 'ch-7',
-        number: 7,
-        name: 'AR | العربية الحدث NEWS',
-        category: 'cat-news',
-        categoryName: 'AR | الاخبار NEWS',
-        logoText: 'ARB',
-        streamUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-        audioOnlyUrl: 'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-        epgTitle: 'تغطية إخبارية مستمرة على مدار الساعة',
-        epgDesc: 'تقارير ميدانية ومقابلات مباشرة مع كبار المحللين.',
-        epgNext: 'الشارع الدبلوماسي'
-      },
-      {
-        id: 'ch-8',
-        number: 8,
-        name: 'AR | ناشيونال جيوغرافيك ابوظبي DOCS',
-        category: 'cat-docs',
-        categoryName: 'AR | الوثائقيات DOCS',
-        logoText: 'GEO',
-        streamUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-        audioOnlyUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
-        epgTitle: 'أسرار الطبيعة - المفترسات الكبرى',
-        epgDesc: 'رحلة استكشافية في أعماق الغابات الاستوائية والحيوانات النادرة.',
-        epgNext: 'هندسة عبقرية'
-      },
-      {
-        id: 'ch-9',
-        number: 9,
-        name: 'MBC 1 HD ENTERTAINMENT',
-        category: 'cat-ent',
-        categoryName: 'AR | ترفيه ومنوعات ENTERTAINMENT',
-        logoText: 'MBC',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        audioOnlyUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        epgTitle: 'مساء الخير يا عرب',
-        epgDesc: 'برنامج المنوعات الترفيهي اليومي وفقرات النجوم.',
-        epgNext: 'صدى الملاعب'
-      },
-      {
-        id: 'ch-10',
-        number: 10,
-        name: 'EVENT ONLY | البث المباشر للأحداث',
-        category: 'cat-events',
-        categoryName: 'EVENT ONLY (أحداث حصرية)',
-        logoText: 'EVT',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        audioOnlyUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        epgTitle: 'مباراة الكلاسيكو - بث مخصص بدون تقطيع',
-        epgDesc: 'خادم مخصص لقمة مباريات الأسبوع مع قنوات صوتية متعددة.',
-        epgNext: 'المؤتمر الصحفي للمدربين'
-      }
-    ];
-
-    // 2. MOVIES VOD DATA
-    const MOCK_MOVIE_CATEGORIES = [
-      { id: 'mv-action', name: 'أفلام أكشن وحركة (ACTION 4K)', count: 5 },
-      { id: 'mv-scifi', name: 'أفلام خيال علمي (SCI-FI 4K)', count: 4 },
-      { id: 'mv-drama', name: 'أفلام دراما وتاريخ (DRAMA)', count: 4 },
-      { id: 'mv-arabic', name: 'أفلام عربية حديثة (ARABIC)', count: 3 },
-      { id: 'mv-animation', name: 'أفلام أنيميشن وعائلية (ANIMATION)', count: 3 }
-    ];
-
-    const MOCK_MOVIES = [
-      {
-        id: 'mv-1',
-        number: 1,
-        name: 'Dune: Part Two (2024)',
-        category: 'mv-scifi',
-        categoryName: 'أفلام خيال علمي (SCI-FI 4K)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        quality: '4K HDR',
-        rating: '8.6',
-        specs: '4K HDR • 166 دقيقة • 2024',
-        desc: 'يواصل بول أتريدس رحلته الأسطورية متحالفا مع تشاني وفريمن للانتقام من المتآمرين الذين دمروا عائلته.'
-      },
-      {
-        id: 'mv-2',
-        number: 2,
-        name: 'Gladiator II (2024)',
-        category: 'mv-action',
-        categoryName: 'أفلام أكشن وحركة (ACTION 4K)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        quality: '4K Dolby',
-        rating: '8.1',
-        specs: '4K Dolby • 148 دقيقة • 2024',
-        desc: 'بعد سنوات من التضحية بماكسيموس، يدخل لوسيوس الكولوسيوم الروماني ليعيد شرف الإمبراطورية.'
-      },
-      {
-        id: 'mv-3',
-        number: 3,
-        name: 'Oppenheimer (2023)',
-        category: 'mv-drama',
-        categoryName: 'أفلام دراما وتاريخ (DRAMA)',
-        logoText: 'FHD',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        quality: '4K IMAX',
-        rating: '8.9',
-        specs: '4K IMAX • 180 دقيقة • 2023',
-        desc: 'قصة العالم الأمريكي ج. روبرت أوبنهايمر ودوره المحوري في تطوير القنبلة الذرية خلال مشروع مانهاتن.'
-      },
-      {
-        id: 'mv-4',
-        number: 4,
-        name: 'Mission: Impossible 7 (2023)',
-        category: 'mv-action',
-        categoryName: 'أفلام أكشن وحركة (ACTION 4K)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        quality: '4K HDR',
-        rating: '7.8',
-        specs: '4K HDR • 163 دقيقة • 2023',
-        desc: 'إيثان هانت وفريقه في مهمة مستحيلة لتعقب سلاح مرعب يهدد البشرية قبل أن يقع في الأيدي الخاطئة.'
-      },
-      {
-        id: 'mv-5',
-        number: 5,
-        name: 'Top Gun: Maverick (2022)',
-        category: 'mv-action',
-        categoryName: 'أفلام أكشن وحركة (ACTION 4K)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-        quality: '4K HDR',
-        rating: '8.3',
-        specs: '4K HDR • 130 دقيقة • 2022',
-        desc: 'يعود مافريك لتدريب نخبة من طياري توب جن لمهمة متخصصة لم يسبق لأي طيار حي رؤيتها.'
-      },
-      {
-        id: 'mv-6',
-        number: 6,
-        name: 'كيرة والجن (2022)',
-        category: 'mv-arabic',
-        categoryName: 'أفلام عربية حديثة (ARABIC)',
-        logoText: 'FHD',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-        quality: '4K HDR',
-        rating: '8.4',
-        specs: '4K HDR • 175 دقيقة • 2022',
-        desc: 'ملحمة تاريخية ترصد حالة الغليان الشعبي وثورة 1919 في مصر ومقاومة الاحتلال الإنجليزي.'
-      },
-      {
-        id: 'mv-7',
-        number: 7,
-        name: 'ولاد رزق 3: القاضية (2024)',
-        category: 'mv-arabic',
-        categoryName: 'أفلام عربية حديثة (ARABIC)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-        quality: '4K HDR',
-        rating: '7.9',
-        specs: '4K HDR • 135 دقيقة • 2024',
-        desc: 'يعود الإخوة بعد سنوات في مواجهة عملية مصيرية تأخذهم إلى الرياض وسط مخاطر غير مسبوقة.'
-      },
-      {
-        id: 'mv-8',
-        number: 8,
-        name: 'Spider-Man: Across Spider-Verse',
-        category: 'mv-animation',
-        categoryName: 'أفلام أنيميشن وعائلية (ANIMATION)',
-        logoText: '4K',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-        quality: '4K HDR',
-        rating: '8.7',
-        specs: '4K HDR • 140 دقيقة • 2023',
-        desc: 'ينطلق مايلز موراليس عبر الأكوان المتعددة لمواجهة شرير خارق لحماية وجود الكون.'
-      }
-    ];
-
-    // 3. SERIES DATA
-    const MOCK_SERIES_CATEGORIES = [
-      { id: 'sr-top', name: 'أقوى المسلسلات العالمية (TOP RATED)', count: 5 },
-      { id: 'sr-arabic', name: 'مسلسلات عربية ومصرية (ARABIC)', count: 3 },
-      { id: 'sr-turkish', name: 'مسلسلات تركية مدبلجة (TURKISH)', count: 3 },
-      { id: 'sr-fantasy', name: 'فانتازيا وخيال علمي (FANTASY)', count: 3 }
-    ];
-
-    const MOCK_SERIES = [
-      {
-        id: 'sr-1',
-        number: 1,
-        name: 'House of the Dragon (آل التنين)',
-        category: 'sr-top',
-        categoryName: 'أقوى المسلسلات العالمية (TOP RATED)',
-        logoText: 'S2',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        quality: '4K HDR',
-        rating: '8.5',
-        specs: 'الموسم 2 (8 حلقات) • 4K HDR',
-        desc: 'الحرب الأهلية التارجيرية تشتعل بين الفصائل المتناحرة على العرش الحديدي في ويستروس.'
-      },
-      {
-        id: 'sr-2',
-        number: 2,
-        name: 'The Last of Us (آخرنا)',
-        category: 'sr-top',
-        categoryName: 'أقوى المسلسلات العالمية (TOP RATED)',
-        logoText: 'S1',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        quality: '4K HDR',
-        rating: '8.8',
-        specs: 'الموسم 1 (9 حلقات) • 4K HDR',
-        desc: 'رحلة جويل وإيلي القاسية عبر الولايات المتحدة المدمرة بعد تفشي وباء فطري حول العالم.'
-      },
-      {
-        id: 'sr-3',
-        number: 3,
-        name: 'Breaking Bad (اختلال ضال)',
-        category: 'sr-top',
-        categoryName: 'أقوى المسلسلات العالمية (TOP RATED)',
-        logoText: 'S5',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        quality: '4K UHD',
-        rating: '9.5',
-        specs: 'المواسم 1-5 (62 حلقة) • 4K',
-        desc: 'تحول معلم كيمياء محبط مصاب بالسرطان إلى زعيم إمبراطورية تجارة الممنوعات هايزنبرغ.'
-      },
-      {
-        id: 'sr-4',
-        number: 4,
-        name: 'الحشاشين (2024)',
-        category: 'sr-arabic',
-        categoryName: 'مسلسلات عربية ومصرية (ARABIC)',
-        logoText: 'S1',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        quality: '4K HDR',
-        rating: '9.1',
-        specs: 'الموسم 1 (30 حلقة) • 4K HDR',
-        desc: 'ملحمة تاريخية عن حسن الصباح وقلعة ألموت وتأسيس أخطر فرقة اغتيالات في التاريخ.'
-      },
-      {
-        id: 'sr-5',
-        number: 5,
-        name: 'قيامة عثمان (Kuruluş Osman)',
-        category: 'sr-turkish',
-        categoryName: 'مسلسلات تركية مدبلجة (TURKISH)',
-        logoText: 'S5',
-        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-        quality: 'FHD 1080p',
-        rating: '8.2',
-        specs: 'الموسم 5 (164 حلقة) • FHD',
-        desc: 'مسيرة الغازي عثمان بن أرطغرل وتأسيس الدولة العثمانية والصراعات ضد المغول والصليبيين.'
-      }
-    ];
-
-    const memoryFavorites = new Set(['ch-1', 'ch-4', 'mv-1', 'sr-1']);
+    // Provider data stays empty until the user authenticates with Xtream Codes.
+    let liveCategories = [], liveChannels = [];
+    let movieCategories = [], movies = [];
+    let seriesCategories = [], series = [];
+    let activeCredentials = null, accountInfo = null, isOfflineCache = false;
+    const FAVORITES_STORAGE_KEY = 'sonix_favorites_v2';
+    function readSavedFavorites() {
+      try {
+        const values = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+        return Array.isArray(values) ? values.filter(value => typeof value === 'string') : [];
+      } catch (_) { return []; }
+    }
+    const memoryFavorites = new Set(readSavedFavorites());
+    try { localStorage.removeItem('sonix_favorites_v1'); } catch (_) {}
+    const saveFavorites = () => {
+      try { localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...memoryFavorites])); }
+      catch (error) { console.warn('Unable to persist favorites', error); }
+    };
+    function favoriteKey(itemId, mode = currentAppMode) {
+      const account = activeCredentials
+        ? String(activeCredentials.server || '') + '|' + String(activeCredentials.username || '')
+        : 'unbound';
+      return account + ':' + mode + ':' + String(itemId);
+    }
+    function isFavorite(itemId, mode = currentAppMode) {
+      return memoryFavorites.has(favoriteKey(itemId, mode));
+    }
+    function resolveProviderImageUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      try {
+        const base = activeCredentials && activeCredentials.server ? activeCredentials.server : document.baseURI;
+        const url = new URL(raw, base);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+      } catch (_) { return ''; }
+    }
+    function setProviderImage(container, value, alt, fallbackText = '') {
+      if (!container) return;
+      container.textContent = fallbackText || '';
+      const src = resolveProviderImageUrl(value);
+      if (!src) return;
+      const image = document.createElement('img');
+      image.className = 'provider-logo';
+      image.alt = alt || '';
+      image.loading = 'lazy';
+      image.referrerPolicy = 'no-referrer';
+      image.src = src;
+      image.onerror = () => {
+        image.remove();
+        if (!container.querySelector('img')) container.textContent = fallbackText || '';
+      };
+      container.replaceChildren(image);
+    }
 
     /**
      * =========================================================================
@@ -2443,8 +2188,30 @@
           this.hlsInstance = null;
         }
 
+        if (window.NativePlayback) window.NativePlayback.stop();
+        this.videoEl.pause();
+        this.videoEl.removeAttribute('src');
+        this.videoEl.load();
         const streamUrl = item.streamUrl;
-        const isM3u8 = streamUrl && streamUrl.includes('.m3u8');
+        if (!streamUrl) {
+          this.showError('رابط البث غير متوفر من الاشتراك.');
+          return;
+        }
+        const normalizedUrl = streamUrl.toLowerCase().split('?')[0];
+        const isTs = normalizedUrl.endsWith('.ts');
+        const isM3u8 = normalizedUrl.endsWith('.m3u8');
+        const nativeFallback = isM3u8 && !(window.Hls && window.Hls.isSupported());
+        if ((isTs || nativeFallback) && window.NativePlayback) {
+          const viewport = document.querySelector('.video-viewport');
+          if (!viewport) {
+            this.showError('تعذر تحديد مساحة عرض الفيديو.');
+            return;
+          }
+          const rect = viewport.getBoundingClientRect();
+          window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
+          this.updateUiInfo(item);
+          return;
+        }
 
         if (isM3u8 && window.Hls && Hls.isSupported()) {
           this.hlsInstance = new Hls({
@@ -2498,12 +2265,7 @@
 
       handleError(e) {
         console.error('Video error', e);
-        if (this.currentItem && !this.currentItem.streamUrl.endsWith('.mp4')) {
-          this.videoEl.src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-          this.videoEl.play().catch(() => {});
-        } else {
-          this.showError('حدث خطأ في تشغيل الفيديو.');
-        }
+        this.showError('تعذر تشغيل رابط البث من الخادم. تحقق من الرابط أو أعد المحاولة.');
       }
 
       showLoader(msg) {
@@ -2518,17 +2280,15 @@
 
       showError(msg) {
         this.loaderEl.classList.remove('active');
+        const message = this.errorEl.querySelector('div:nth-child(2)');
+        if (message) message.textContent = msg || 'تعذر تشغيل البث من الخادم.';
         this.errorEl.classList.add('active');
       }
 
       togglePlayPause() {
-        if (this.videoEl.paused) {
-          this.videoEl.play();
-          showToast('تم استئناف البث');
-        } else {
-          this.videoEl.pause();
-          showToast('تم الإيقاف المؤقت');
-        }
+        if (window.NativePlayback && window.NativePlayback.isActive()) { window.NativePlayback.toggle(); showToast('تم تبديل حالة التشغيل'); return; }
+        if (this.videoEl.paused) { this.videoEl.play(); showToast('تم استئناف البث'); }
+        else { this.videoEl.pause(); showToast('تم الإيقاف المؤقت'); }
       }
 
       toggleMute() {
@@ -2537,13 +2297,13 @@
           return;
         }
         this.videoEl.muted = !this.videoEl.muted;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(this.videoEl.muted);
         showToast(this.videoEl.muted ? 'تم كتم الصوت' : 'تم تفعيل الصوت');
       }
 
       pause() {
-        if (this.videoEl && !this.videoEl.paused) {
-          this.videoEl.pause();
-        }
+        if (this.videoEl && !this.videoEl.paused) this.videoEl.pause();
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.pause();
       }
 
       toggleFullscreen() {
@@ -2551,6 +2311,7 @@
         if (!container) return;
         this.isFullscreen = !this.isFullscreen;
         container.classList.toggle('is-fullscreen', this.isFullscreen);
+        if (window.NativePlayback && window.NativePlayback.isActive()) { const r=container.getBoundingClientRect(); window.NativePlayback.resize(r.left,r.top,r.width,r.height); }
 
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
@@ -2592,8 +2353,8 @@
         } else {
           scoreOverlay.style.display = 'none';
           vodMetaBox.style.display = 'flex';
-          document.getElementById('vod-rating-tag').textContent = `★ ${item.rating || '8.5'}/10`;
-          document.getElementById('vod-specs-tag').textContent = item.specs || '4K HDR';
+          document.getElementById('vod-rating-tag').textContent = `★ ${item.rating || '—'}/10`;
+          document.getElementById('vod-specs-tag').textContent = item.specs || '—';
           document.getElementById('vod-cat-tag').textContent = item.categoryName;
           document.getElementById('vod-desc-text').textContent = item.desc || 'لا يوجد وصف متاح.';
           primaryLabel.textContent = currentAppMode === 'movies' ? 'تشغيل الفيلم' : 'تشغيل الحلقة';
@@ -2603,6 +2364,7 @@
       }
 
       stopAndRelease() {
+        if (window.NativePlayback) window.NativePlayback.stop();
         if (this.hlsInstance) {
           this.hlsInstance.destroy();
           this.hlsInstance = null;
@@ -2708,6 +2470,7 @@
         this.setStatus('connecting', 'جارٍ الاتصال...');
 
         this.videoController.videoEl.muted = true;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(true);
 
         if (this.hlsAudioInstance) {
           this.hlsAudioInstance.destroy();
@@ -2732,8 +2495,7 @@
         } else {
           this.audioEl.src = audioUrl;
           this.audioEl.play().catch(() => {
-            this.audioEl.src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
-            this.audioEl.play().catch(() => {});
+            this.setStatus('failed', 'تعذر تشغيل مصدر الصوت');
           });
         }
 
@@ -2762,6 +2524,7 @@
 
       restoreOriginalVideoAudio() {
         this.videoController.videoEl.muted = false;
+        if (window.NativePlayback && window.NativePlayback.isActive()) window.NativePlayback.setMuted(false);
       }
 
       adjustDelay(deltaMs) {
@@ -3117,13 +2880,184 @@
       }, 2500);
     }
 
+    function parseNative(raw) {
+      const value = JSON.parse(raw);
+      if (value && value.success === false) throw new Error(value.error || 'فشل طلب الخادم');
+      return value;
+    }
+    function isNetworkFailure(error) {
+      const message = String(error && error.message ? error.message : error || '');
+      return /تعذر العثور على خادم|انتهت مهلة الاتصال|تعذر الاتصال بخادم|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network|HTTP 5\d\d/i.test(message);
+    }
+    function nativeArray(action) {
+      const value = parseNative(window.XtreamBridge.load(action));
+      if (!Array.isArray(value)) throw new Error('استجابة غير صالحة من الخادم: ' + action);
+      return value;
+    }
+    function makeCategories(rows, prefix) {
+      return rows.map(row => ({id:prefix + String(row.category_id), providerId:String(row.category_id), name:row.category_name || 'تصنيف'}));
+    }
+    function makeStreamUrl(type, id, item) {
+      if (!activeCredentials || !window.XtreamBridge) return '';
+      const ext = (item.container_extension || (type === 'live' ? 'ts' : 'mp4')).replace(/^\./,'');
+      return parseNative(window.XtreamBridge.streamUrl(type,String(id),ext)).url;
+    }
+    function loadXtreamContent() {
+      const lc = makeCategories(nativeArray('get_live_categories'),'live-');
+      const mc = makeCategories(nativeArray('get_vod_categories'),'movie-');
+      const sc = makeCategories(nativeArray('get_series_categories'),'series-');
+      const categoryName = (list,prefix,id) => (list.find(x => x.id === prefix + String(id)) || {}).name || '';
+      const rawLive = nativeArray('get_live_streams');
+      const rawMovies = nativeArray('get_vod_streams');
+      const rawSeries = nativeArray('get_series');
+      liveCategories = [{id:'all',name:'جميع القنوات'}].concat(lc,[{id:'favorites',name:'المفضلة'}]);
+      liveChannels = rawLive.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'قناة',
+        category:x.category_id == null ? '' : 'live-' + x.category_id,categoryName:categoryName(lc,'live-',x.category_id),
+        logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('live',x.stream_id,x),audioOnlyUrl:'',
+        epgChannelId:x.epg_channel_id || '',containerExtension:x.container_extension || 'ts'}));
+      movieCategories = [{id:'all',name:'جميع الأفلام'}].concat(mc,[{id:'favorites',name:'المفضلة'}]);
+      movies = rawMovies.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'فيلم',
+        category:x.category_id == null ? '' : 'movie-' + x.category_id,categoryName:categoryName(mc,'movie-',x.category_id),
+        logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('movie',x.stream_id,x),
+        rating:x.rating || '',desc:x.plot || '',containerExtension:x.container_extension || 'mp4'}));
+      seriesCategories = [{id:'all',name:'جميع المسلسلات'}].concat(sc,[{id:'favorites',name:'المفضلة'}]);
+      series = rawSeries.map((x,i) => ({id:String(x.series_id),seriesId:String(x.series_id),number:i+1,name:x.name || 'مسلسل',
+        category:x.category_id == null ? '' : 'series-' + x.category_id,categoryName:categoryName(sc,'series-',x.category_id),
+        logo:x.cover || '',logoText:'',streamUrl:'',rating:x.rating || '',desc:x.plot || ''}));
+      const safeCopy = rows => rows.map(item => ({...item, streamUrl:'', audioOnlyUrl:''}));
+      try {
+        localStorage.setItem('sonix_provider_cache_v1',JSON.stringify({
+          liveCategories,liveChannels:safeCopy(liveChannels),movieCategories,movies:safeCopy(movies),
+          seriesCategories,series:safeCopy(series)
+        }));
+      } catch (cacheError) {
+        console.warn('Unable to persist provider cache; continuing with live content', cacheError);
+      }
+      isOfflineCache = false;
+      const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display='none';
+      renderCategories(); renderItems(); renderAudioSourcePicker();
+    }
+    function restoreXtreamCache() {
+      try {
+        const c = JSON.parse(localStorage.getItem('sonix_provider_cache_v1') || 'null');
+        if (!c) return false;
+        const ensureAll = (categories, label) =>
+          categories.some(category => category.id === 'all') ? categories : [{id:'all',name:label},...categories];
+        liveCategories=ensureAll(c.liveCategories || [],'جميع القنوات'); liveChannels=c.liveChannels || [];
+        movieCategories=ensureAll(c.movieCategories || [],'جميع الأفلام'); movies=c.movies || [];
+        seriesCategories=ensureAll(c.seriesCategories || [],'جميع المسلسلات'); series=c.series || [];
+        liveChannels=liveChannels.map(x=>({...x,streamUrl:makeStreamUrl('live',x.id,{container_extension:x.containerExtension || 'ts'})}));
+        movies=movies.map(x=>({...x,streamUrl:makeStreamUrl('movie',x.id,{container_extension:x.containerExtension || 'mp4'})}));
+        const hasContent=liveChannels.length + movies.length + series.length > 0;
+        const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display=hasContent?'block':'none';
+        return hasContent;
+      } catch (_) { return false; }
+    }
+    function setLoginMessage(message, success) {
+      const el=document.getElementById('sonix-login-message');
+      if(el){el.textContent=message || '';el.style.color=success?'var(--success-green)':'var(--danger-red)';}
+    }
+    function updateAccount(user) {
+      accountInfo=user || {};
+      const exp=Number(accountInfo.exp_date || 0);
+      document.getElementById('account-user-name').textContent=accountInfo.username || '—';
+      document.getElementById('account-user-id').textContent=accountInfo.user_id || accountInfo.username || '—';
+      document.getElementById('account-expiry').textContent=exp>0?new Date(exp*1000).toLocaleDateString('ar'):'غير محدد';
+      const pn=document.getElementById('profile-user-name'); if(pn) pn.textContent=accountInfo.username || '—';
+      const pi=document.getElementById('profile-user-id'); if(pi) pi.textContent=accountInfo.user_id || accountInfo.username || '—';
+      const pe=document.getElementById('profile-expiry'); if(pe) pe.textContent=exp>0?new Date(exp*1000).toLocaleDateString('ar'):'غير محدد';
+      const pp=document.getElementById('profile-package'); if(pp) pp.textContent=accountInfo.status || '—';
+      const ps=document.getElementById('profile-server-status'); if(ps) ps.textContent=isOfflineCache?'بيانات مخزنة سابقاً':'تم التحقق من الاشتراك';
+    }
+    function performXtreamLogin(server,username,password,offlineFallback) {
+      const button=document.getElementById('login-submit');
+      button.disabled=true;button.textContent='جارٍ التحقق من الاشتراك...';setLoginMessage('');
+      try {
+        const result=parseNative(window.XtreamBridge.login(server,username,password));
+        activeCredentials={server:server.trim().replace(/\/+$/,''),username:result.user_info.username || username};
+        isOfflineCache=false;
+        updateAccount(result.user_info);
+        loadXtreamContent();
+        document.getElementById('sonix-login-screen').classList.add('hidden');
+        document.getElementById('login-password').value='';
+        const settingsPassword=document.getElementById('iptv-password'); if(settingsPassword) settingsPassword.value='';
+        showToast('تم التحقق من الاشتراك وتحميل محتوى الخادم');
+      } catch(error) {
+        if (offlineFallback) {
+          try {
+            const saved=parseNative(window.XtreamBridge.savedCredentials());
+            activeCredentials={server:saved.server,username:saved.username};
+          } catch (_) {}
+        }
+        if(offlineFallback && isNetworkFailure(error) && activeCredentials && restoreXtreamCache()) {
+          isOfflineCache=true;
+          updateAccount({username:activeCredentials.username});
+          document.getElementById('sonix-login-screen').classList.add('hidden');
+          showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
+          renderCategories();renderItems();renderAudioSourcePicker();
+        } else {
+          setLoginMessage(error.message || 'فشل تسجيل الدخول');
+        }
+      } finally {
+        button.disabled=false;button.textContent='تسجيل الدخول';
+      }
+    }
+    function openSeriesEpisodes(item) {
+      try {
+        const data=parseNative(window.XtreamBridge.seriesInfo(item.seriesId));
+        const episodes=data.episodes || {};
+        const list=document.getElementById('series-episodes-list');
+        list.innerHTML='';
+        Object.keys(episodes).sort((a,b)=>Number(a)-Number(b)).forEach(season=>{
+          const heading=document.createElement('div');
+          heading.textContent='الموسم ' + season;
+          heading.style.cssText='padding:10px;color:var(--accent-gold);font-weight:800';
+          list.appendChild(heading);
+          (episodes[season] || []).forEach(ep=>{
+            const button=document.createElement('button');
+            button.className='action-btn focusable';
+            button.textContent='الحلقة ' + (ep.episode_num || '') + ' - ' + (ep.title || ep.id);
+            button.addEventListener('click',()=>{
+              const ext=ep.container_extension || 'mp4';
+              const url=parseNative(window.XtreamBridge.streamUrl('series',String(ep.id),ext)).url;
+              closeAllModals();
+              selectItem({...item,seriesId:null,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
+            });
+            list.appendChild(button);
+          });
+        });
+        if(!list.children.length) throw new Error('لا توجد حلقات متاحة لهذا المسلسل');
+        document.getElementById('series-episodes-modal').classList.add('active');
+      } catch(error) { showToast(error.message || 'تعذر تحميل الحلقات'); }
+    }
+    function refreshXtreamContent() {
+      try {
+        if(!activeCredentials) throw new Error('سجّل الدخول أولاً');
+        const session=parseNative(window.XtreamBridge.restoreSession());
+        isOfflineCache=false;
+        updateAccount(session.user_info);
+        loadXtreamContent();
+        const status=document.getElementById('profile-server-status');
+        if(status) status.textContent='تم التحقق من الاشتراك';
+        showToast('تم تحديث المحتوى من خادم الاشتراك');
+      } catch(error) {
+        const hasCache=!!(activeCredentials && isNetworkFailure(error) && restoreXtreamCache());
+        isOfflineCache=hasCache;
+        const note=document.getElementById('cache-status'); if(note) note.style.display=hasCache?'block':'none';
+        const status=document.getElementById('profile-server-status');
+        if(status) status.textContent=hasCache?'تعذر التحديث — بيانات سابقة':(isNetworkFailure(error)?'تعذر الاتصال بالخادم':'تعذر التحقق من الاشتراك');
+        if (hasCache) { renderCategories(); renderItems(); renderAudioSourcePicker(); }
+        showToast('فشل التحديث: ' + (error.message || 'تعذر الاتصال'));
+      }
+    }
+
     /**
      * =========================================================================
      * UNIFIED CONTENT BROWSER ENGINE (CHANNELS, MOVIES, SERIES IN SAME 4 COLUMNS)
      * =========================================================================
      */
-    let currentActiveCategory = 'cat-sports';
-    let currentSelectedItem = MOCK_CHANNELS[0];
+    let currentActiveCategory = '';
+    let currentSelectedItem = null;
 
     function setAppMode(mode) {
       currentAppMode = mode;
@@ -3142,37 +3076,37 @@
         titleEl.textContent = 'مباشر';
         searchInput.placeholder = 'البحث في القنوات...';
         catSearchInput.placeholder = 'البحث في فئات القنوات...';
-        currentActiveCategory = 'cat-sports';
-        currentSelectedItem = MOCK_CHANNELS[0];
+        currentActiveCategory = liveCategories[0] ? liveCategories[0].id : '';
+        currentSelectedItem = liveChannels[0] || null;
       } else if (mode === 'movies') {
         titleEl.textContent = 'الأفلام (VOD)';
         searchInput.placeholder = 'البحث في الأفلام...';
         catSearchInput.placeholder = 'البحث في تصنيفات الأفلام...';
-        currentActiveCategory = 'mv-action';
-        currentSelectedItem = MOCK_MOVIES[0];
+        currentActiveCategory = movieCategories[0] ? movieCategories[0].id : '';
+        currentSelectedItem = movies[0] || null;
       } else if (mode === 'series') {
         titleEl.textContent = 'المسلسلات (Series)';
         searchInput.placeholder = 'البحث في المسلسلات...';
         catSearchInput.placeholder = 'البحث في تصنيفات المسلسلات...';
-        currentActiveCategory = 'sr-top';
-        currentSelectedItem = MOCK_SERIES[0];
+        currentActiveCategory = seriesCategories[0] ? seriesCategories[0].id : '';
+        currentSelectedItem = series[0] || null;
       }
 
       renderCategories();
       renderItems();
-      videoPlaybackController.loadItem(currentSelectedItem);
+      if (currentSelectedItem && currentSelectedItem.streamUrl) videoPlaybackController.loadItem(currentSelectedItem);
     }
 
     function getActiveCategoryList() {
-      if (currentAppMode === 'movies') return MOCK_MOVIE_CATEGORIES;
-      if (currentAppMode === 'series') return MOCK_SERIES_CATEGORIES;
-      return MOCK_CATEGORIES;
+      if (currentAppMode === 'movies') return movieCategories;
+      if (currentAppMode === 'series') return seriesCategories;
+      return liveCategories;
     }
 
     function getActiveItemList() {
-      if (currentAppMode === 'movies') return MOCK_MOVIES;
-      if (currentAppMode === 'series') return MOCK_SERIES;
-      return MOCK_CHANNELS;
+      if (currentAppMode === 'movies') return movies;
+      if (currentAppMode === 'series') return series;
+      return liveChannels;
     }
 
     function renderCategories() {
@@ -3189,14 +3123,17 @@
         item.tabIndex = 0;
         item.dataset.catId = cat.id;
 
-        const count = cat.id === 'cat-fav' 
-          ? memoryFavorites.size 
-          : allItems.filter(c => c.category === cat.id).length;
-
-        item.innerHTML = `
-          <span>${cat.name}</span>
-          <span class="category-badge">${count}</span>
-        `;
+        const count = cat.id === 'all'
+          ? allItems.length
+          : cat.id === 'favorites'
+            ? allItems.filter(entry => isFavorite(entry.id)).length
+            : allItems.filter(entry => entry.category === cat.id).length;
+        const name = document.createElement('span');
+        name.textContent = cat.name || 'تصنيف';
+        const badge = document.createElement('span');
+        badge.className = 'category-badge';
+        badge.textContent = String(count);
+        item.append(name, badge);
 
         item.addEventListener('click', () => {
           selectCategory(cat.id);
@@ -3229,8 +3166,10 @@
       const allItems = getActiveItemList();
       let items = [];
 
-      if (currentActiveCategory === 'cat-fav') {
-        items = allItems.filter(c => memoryFavorites.has(c.id));
+      if (currentActiveCategory === 'all') {
+        items = allItems.slice();
+      } else if (currentActiveCategory === 'favorites') {
+        items = allItems.filter(c => isFavorite(c.id));
       } else {
         items = allItems.filter(c => c.category === currentActiveCategory);
       }
@@ -3250,16 +3189,16 @@
       items.forEach(it => {
         const row = document.createElement('div');
         const isSelected = currentSelectedItem && currentSelectedItem.id === it.id;
-        const isFav = memoryFavorites.has(it.id);
+        const isFav = isFavorite(it.id);
 
         row.className = `channel-row focusable ${isSelected ? 'selected' : ''}`;
         row.tabIndex = 0;
         row.dataset.itemId = it.id;
 
         row.innerHTML = `
-          <span class="channel-number">${it.number}</span>
-          <div class="channel-logo-box">${it.logoText}</div>
-          <span class="channel-name">${it.name}</span>
+          <span class="channel-number"></span>
+          <div class="channel-logo-box"></div>
+          <span class="channel-name"></span>
           <svg class="channel-fav-star ${isFav ? 'active' : ''}" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
@@ -3292,18 +3231,84 @@
           lastRowTap = now;
         });
 
+        row.querySelector('.channel-number').textContent = String(it.number || '');
+        row.querySelector('.channel-name').textContent = it.name || '';
+        setProviderImage(row.querySelector('.channel-logo-box'), it.logo, it.name, it.logoText || '');
         container.appendChild(row);
       });
     }
 
+    function loadLiveEpg(item) {
+      if (!item || !window.XtreamBridge) return;
+      item.epgTitle = '';
+      item.epgDesc = '';
+      item.epgNext = '';
+      const currentTitle = document.getElementById('epg-curr-title');
+      const currentDesc = document.getElementById('epg-curr-desc');
+      const nextTitle = document.getElementById('epg-next-title');
+      if (currentSelectedItem && currentSelectedItem.id === item.id) {
+        if (currentTitle) currentTitle.textContent = 'جارٍ تحميل دليل البرامج...';
+        if (currentDesc) currentDesc.textContent = 'يرجى الانتظار';
+        if (nextTitle) nextTitle.textContent = 'لا توجد بيانات بعد';
+      }
+      try {
+        const response=parseNative(window.XtreamBridge.shortEpg(item.id));
+        const listings=response.epg_listings || [];
+        if (!listings.length) {
+          if (currentSelectedItem && currentSelectedItem.id === item.id) {
+            if (currentTitle) currentTitle.textContent = 'لا تتوفر بيانات EPG لهذه القناة';
+            if (currentDesc) currentDesc.textContent = 'لم يرسل الخادم جدول برامج';
+            if (nextTitle) nextTitle.textContent = 'لا توجد بيانات للبرنامج التالي';
+          }
+          return;
+        }
+        const decodeText=value => {
+          try { return decodeURIComponent(escape(atob(value || ''))); } catch (_) { return value || ''; }
+        };
+        const current=listings[0], next=listings[1];
+        item.epgTitle=decodeText(current.title);
+        item.epgDesc=decodeText(current.description);
+        item.epgNext=next ? decodeText(next.title) : '';
+        if(currentSelectedItem && currentSelectedItem.id === item.id) {
+          document.getElementById('epg-curr-title').textContent=item.epgTitle || 'بث مباشر';
+          document.getElementById('epg-curr-desc').textContent=item.epgDesc || 'لا توجد تفاصيل إضافية';
+          document.getElementById('epg-next-title').textContent=item.epgNext || 'لا توجد بيانات للبرنامج التالي';
+        }
+      } catch(error) {
+        console.warn('EPG unavailable',error);
+        if (currentSelectedItem && currentSelectedItem.id === item.id) {
+          if (currentTitle) currentTitle.textContent = 'تعذر تحميل دليل البرامج';
+          if (currentDesc) currentDesc.textContent = error.message || 'الخادم لم يوفر بيانات EPG';
+          if (nextTitle) nextTitle.textContent = 'لا توجد بيانات للبرنامج التالي';
+        }
+      }
+    }
     function selectItem(item) {
       currentSelectedItem = item;
       document.querySelectorAll('.channel-row').forEach(el => {
         el.classList.toggle('selected', el.dataset.itemId === item.id);
       });
 
+      if (currentAppMode === 'series' && item.seriesId) { openSeriesEpisodes(item); return; }
+      if (currentAppMode === 'movies' && window.XtreamBridge) {
+        try {
+          const details=parseNative(window.XtreamBridge.vodInfo(item.id));
+          const info=details.info || {};
+          const movie=details.movie_data || {};
+          item.desc=info.plot || item.desc || '';
+          item.rating=info.rating || item.rating || '';
+          item.logo=info.movie_image || item.logo || '';
+          item.containerExtension=movie.container_extension || item.containerExtension || 'mp4';
+          item.streamUrl=makeStreamUrl('movie',item.id,{container_extension:item.containerExtension});
+          const selectedRow = Array.from(document.querySelectorAll('.channel-row'))
+            .find(row => row.dataset.itemId === String(item.id));
+          if (selectedRow) setProviderImage(selectedRow.querySelector('.channel-logo-box'), item.logo, item.name, item.logoText || '');
+        } catch (error) { console.warn('VOD details unavailable',error); }
+      }
+      if (!item.streamUrl) { showToast('رابط التشغيل غير متوفر من الخادم'); return; }
       videoPlaybackController.loadItem(item);
-      showToast(`تم الاختيار: ${item.name}`);
+      if (currentAppMode === 'live') loadLiveEpg(item);
+      showToast('تم الاختيار: ' + item.name);
     }
 
     function renderAudioSourcePicker(filterText = '') {
@@ -3311,7 +3316,7 @@
       if (!container) return;
       container.innerHTML = '';
 
-      let list = MOCK_CHANNELS;
+      let list = liveChannels;
       if (filterText) {
         list = list.filter(c => c.name.toLowerCase().includes(filterText.toLowerCase()));
       }
@@ -3322,10 +3327,12 @@
         item.className = `audio-picker-item focusable ${isCurrentAudio ? 'active' : ''}`;
         item.tabIndex = 0;
         item.dataset.channelId = ch.id;
-        item.innerHTML = `
-          <span>${ch.number}. ${ch.name}</span>
-          <span style="font-size:0.7rem; color:var(--text-muted);">${ch.categoryName}</span>
-        `;
+        const channelName = document.createElement('span');
+        channelName.textContent = String(ch.number || '') + '. ' + (ch.name || '');
+        const categoryName = document.createElement('span');
+        categoryName.style.cssText = 'font-size:0.7rem;color:var(--text-muted);';
+        categoryName.textContent = ch.categoryName || '';
+        item.append(channelName, categoryName);
         item.addEventListener('click', () => {
           dualAudioEngine.setSourceChannel(ch);
         });
@@ -3334,7 +3341,7 @@
     }
 
     function updateFavoriteButtons(itemId) {
-      const isFav = memoryFavorites.has(itemId);
+      const isFav = isFavorite(itemId);
       const heartBtn = document.getElementById('player-heart-btn');
       const favLabel = document.getElementById('fav-btn-label');
       if (heartBtn) heartBtn.classList.toggle('active', isFav);
@@ -3343,13 +3350,15 @@
 
     function toggleFavorite(itemId) {
       if (!itemId) return;
-      if (memoryFavorites.has(itemId)) {
-        memoryFavorites.delete(itemId);
+      const key = favoriteKey(itemId);
+      if (memoryFavorites.has(key)) {
+        memoryFavorites.delete(key);
         showToast('تمت الإزالة من المفضلة');
       } else {
-        memoryFavorites.add(itemId);
+        memoryFavorites.add(key);
         showToast('تمت الإضافة إلى المفضلة');
       }
+      saveFavorites();
       updateFavoriteButtons(itemId);
       renderCategories();
       renderItems();
@@ -3364,7 +3373,18 @@
     let dualAudioEngine;
     let remoteNavigator;
 
+    window.onNativePlaybackReady = function() { if (videoPlaybackController) videoPlaybackController.hideLoader(); };
+    window.onNativePlaybackError = function(message) { if (videoPlaybackController) videoPlaybackController.showError(message || 'فشل تشغيل البث'); };
+
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-submit').addEventListener('click', () => performXtreamLogin(
+        document.getElementById('login-server').value,
+        document.getElementById('login-username').value,
+        document.getElementById('login-password').value, false));
+      ['login-server','login-username','login-password'].forEach(id => document.getElementById(id).addEventListener('keydown',e => {
+        if(e.key === 'Enter') document.getElementById('login-submit').click();
+      }));
+
       // 1. Initialize Video & Audio Engines
       videoPlaybackController = new VideoPlaybackController();
       dualAudioEngine = new DualAudioSystem(videoPlaybackController);
@@ -3408,18 +3428,26 @@
 
       // 7. Home Top Bar Buttons
       document.getElementById('btn-power').addEventListener('click', () => openModal('modal-power'));
-      document.getElementById('btn-refresh').addEventListener('click', () => {
-        renderCategories();
-        renderItems();
-        showToast('تم تحديث البيانات والقوائم بنجاح');
-      });
+      document.getElementById('btn-refresh').addEventListener('click', refreshXtreamContent);
       document.getElementById('btn-profile').addEventListener('click', () => openModal('modal-profile'));
       document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'));
+      document.getElementById('btn-save-iptv').addEventListener('click', () => {
+        const server=document.getElementById('iptv-server-url').value;
+        const username=document.getElementById('iptv-username').value;
+        const password=document.getElementById('iptv-password').value;
+        document.getElementById('login-server').value=server;
+        document.getElementById('login-username').value=username;
+        document.getElementById('login-password').value=password;
+        closeAllModals();
+        document.getElementById('sonix-login-screen').classList.remove('hidden');
+        performXtreamLogin(server,username,password,false);
+      });
       document.getElementById('btn-search').addEventListener('click', () => openModal('modal-search'));
 
       // 8. Player Actions
       document.getElementById('btn-open-epg').addEventListener('click', () => {
         if (currentAppMode === 'live') {
+          if (currentSelectedItem) loadLiveEpg(currentSelectedItem);
           openModal('modal-epg');
         } else {
           showToast(`جارٍ تشغيل ${currentSelectedItem ? currentSelectedItem.name : ''}...`);
@@ -3459,6 +3487,35 @@
         }
       });
 
+      try {
+        const saved=parseNative(window.XtreamBridge.savedCredentials());
+        document.getElementById('login-server').value=saved.server || '';
+        document.getElementById('login-username').value=saved.username || '';
+        activeCredentials={server:saved.server,username:saved.username};
+        try {
+          const restored=parseNative(window.XtreamBridge.restoreSession());
+          isOfflineCache=false;
+          updateAccount(restored.user_info);
+          loadXtreamContent();
+          document.getElementById('sonix-login-screen').classList.add('hidden');
+        } catch (restoreError) {
+          if(isNetworkFailure(restoreError) && restoreXtreamCache()) {
+            isOfflineCache=true;
+            updateAccount({username:saved.username});
+            document.getElementById('sonix-login-screen').classList.add('hidden');
+            renderCategories();renderItems();renderAudioSourcePicker();
+            showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
+          } else {
+            activeCredentials=null;
+            document.getElementById('sonix-login-screen').classList.remove('hidden');
+            setLoginMessage(restoreError.message || 'تعذر استعادة الاشتراك');
+          }
+        }
+      } catch (_) {
+        activeCredentials=null;
+        document.getElementById('sonix-login-screen').classList.remove('hidden');
+      }
+
       // 10. Search Filters
       document.getElementById('cat-filter-input').addEventListener('input', (e) => {
         const val = e.target.value.trim().toLowerCase();
@@ -3485,9 +3542,9 @@
           return;
         }
 
-        const matchedChannels = MOCK_CHANNELS.filter(c => c.name.toLowerCase().includes(query));
-        const matchedMovies = MOCK_MOVIES.filter(m => m.name.toLowerCase().includes(query));
-        const matchedSeries = MOCK_SERIES.filter(s => s.name.toLowerCase().includes(query));
+        const matchedChannels = liveChannels.filter(c => c.name.toLowerCase().includes(query));
+        const matchedMovies = movies.filter(m => m.name.toLowerCase().includes(query));
+        const matchedSeries = series.filter(s => s.name.toLowerCase().includes(query));
 
         if (!matchedChannels.length && !matchedMovies.length && !matchedSeries.length) {
           resultsContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">لم يتم العثور على أي نتائج</div>';
@@ -3496,19 +3553,19 @@
 
         resultsContainer.innerHTML = `
           ${matchedChannels.map(c => `
-            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('live'); selectItem(MOCK_CHANNELS.find(x=>x.id==='${c.id}'));">
+            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('live'); selectItem(liveChannels.find(x=>x.id==='${c.id}'));">
               <span style="color:#fff; font-weight:700;">📺 ${c.name}</span>
               <span style="color:var(--focus-blue); font-size:0.75rem;">قناة مباشرة</span>
             </div>
           `).join('')}
           ${matchedMovies.map(m => `
-            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('movies'); selectItem(MOCK_MOVIES.find(x=>x.id==='${m.id}'));">
+            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('movies'); selectItem(movies.find(x=>x.id==='${m.id}'));">
               <span style="color:#fff; font-weight:700;">🎬 ${m.name}</span>
               <span style="color:var(--accent-gold); font-size:0.75rem;">فيلم ${m.quality}</span>
             </div>
           `).join('')}
           ${matchedSeries.map(s => `
-            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('series'); selectItem(MOCK_SERIES.find(x=>x.id==='${s.id}'));">
+            <div class="audio-picker-item focusable" style="background:#0A0F14;" onclick="closeAllModals(); switchView('view-live'); setAppMode('series'); selectItem(series.find(x=>x.id==='${s.id}'));">
               <span style="color:#fff; font-weight:700;">🍿 ${s.name}</span>
               <span style="color:var(--focus-blue); font-size:0.75rem;">مسلسل ${s.quality}</span>
             </div>
@@ -3517,7 +3574,7 @@
       });
 
       // 12. Focus Channels Card Initially
-      const initialFocus = document.getElementById('card-channels');
+      const initialFocus = document.getElementById('login-server') || document.getElementById('card-channels');
       if (initialFocus && remoteNavigator) {
         remoteNavigator.focusElement(initialFocus);
       }

@@ -2071,12 +2071,16 @@
       } catch (_) { return []; }
     }
     const memoryFavorites = new Set(readSavedFavorites());
+    try { localStorage.removeItem('sonix_favorites_v1'); } catch (_) {}
     const saveFavorites = () => {
       try { localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...memoryFavorites])); }
       catch (error) { console.warn('Unable to persist favorites', error); }
     };
     function favoriteKey(itemId, mode = currentAppMode) {
-      return mode + ':' + String(itemId);
+      const account = activeCredentials
+        ? String(activeCredentials.server || '') + '|' + String(activeCredentials.username || '')
+        : 'unbound';
+      return account + ':' + mode + ':' + String(itemId);
     }
     function isFavorite(itemId, mode = currentAppMode) {
       return memoryFavorites.has(favoriteKey(itemId, mode));
@@ -2906,17 +2910,17 @@
       const rawLive = nativeArray('get_live_streams');
       const rawMovies = nativeArray('get_vod_streams');
       const rawSeries = nativeArray('get_series');
-      liveCategories = lc.concat([{id:'favorites',name:'المفضلة'}]);
+      liveCategories = [{id:'all',name:'جميع القنوات'}].concat(lc,[{id:'favorites',name:'المفضلة'}]);
       liveChannels = rawLive.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'قناة',
         category:x.category_id == null ? '' : 'live-' + x.category_id,categoryName:categoryName(lc,'live-',x.category_id),
         logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('live',x.stream_id,x),audioOnlyUrl:'',
         epgChannelId:x.epg_channel_id || '',containerExtension:x.container_extension || 'ts'}));
-      movieCategories = mc.concat([{id:'favorites',name:'المفضلة'}]);
+      movieCategories = [{id:'all',name:'جميع الأفلام'}].concat(mc,[{id:'favorites',name:'المفضلة'}]);
       movies = rawMovies.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'فيلم',
         category:x.category_id == null ? '' : 'movie-' + x.category_id,categoryName:categoryName(mc,'movie-',x.category_id),
         logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('movie',x.stream_id,x),
         rating:x.rating || '',desc:x.plot || '',containerExtension:x.container_extension || 'mp4'}));
-      seriesCategories = sc.concat([{id:'favorites',name:'المفضلة'}]);
+      seriesCategories = [{id:'all',name:'جميع المسلسلات'}].concat(sc,[{id:'favorites',name:'المفضلة'}]);
       series = rawSeries.map((x,i) => ({id:String(x.series_id),seriesId:String(x.series_id),number:i+1,name:x.name || 'مسلسل',
         category:x.category_id == null ? '' : 'series-' + x.category_id,categoryName:categoryName(sc,'series-',x.category_id),
         logo:x.cover || '',logoText:'',streamUrl:'',rating:x.rating || '',desc:x.plot || ''}));
@@ -2937,9 +2941,11 @@
       try {
         const c = JSON.parse(localStorage.getItem('sonix_provider_cache_v1') || 'null');
         if (!c) return false;
-        liveCategories=c.liveCategories || []; liveChannels=c.liveChannels || [];
-        movieCategories=c.movieCategories || []; movies=c.movies || [];
-        seriesCategories=c.seriesCategories || []; series=c.series || [];
+        const ensureAll = (categories, label) =>
+          categories.some(category => category.id === 'all') ? categories : [{id:'all',name:label},...categories];
+        liveCategories=ensureAll(c.liveCategories || [],'جميع القنوات'); liveChannels=c.liveChannels || [];
+        movieCategories=ensureAll(c.movieCategories || [],'جميع الأفلام'); movies=c.movies || [];
+        seriesCategories=ensureAll(c.seriesCategories || [],'جميع المسلسلات'); series=c.series || [];
         liveChannels=liveChannels.map(x=>({...x,streamUrl:makeStreamUrl('live',x.id,{container_extension:x.containerExtension || 'ts'})}));
         movies=movies.map(x=>({...x,streamUrl:makeStreamUrl('movie',x.id,{container_extension:x.containerExtension || 'mp4'})}));
         const hasContent=liveChannels.length + movies.length + series.length > 0;
@@ -2968,11 +2974,13 @@
       button.disabled=true;button.textContent='جارٍ التحقق من الاشتراك...';setLoginMessage('');
       try {
         const result=parseNative(window.XtreamBridge.login(server,username,password));
-        activeCredentials={server:server.trim().replace(/\/$/,''),username:result.user_info.username || username};
+        activeCredentials={server:server.trim().replace(/\/+$/,''),username:result.user_info.username || username};
         isOfflineCache=false;
         updateAccount(result.user_info);
         loadXtreamContent();
         document.getElementById('sonix-login-screen').classList.add('hidden');
+        document.getElementById('login-password').value='';
+        const settingsPassword=document.getElementById('iptv-password'); if(settingsPassword) settingsPassword.value='';
         showToast('تم التحقق من الاشتراك وتحميل محتوى الخادم');
       } catch(error) {
         if (offlineFallback) {
@@ -3115,9 +3123,11 @@
         item.tabIndex = 0;
         item.dataset.catId = cat.id;
 
-        const count = cat.id === 'favorites'
-          ? allItems.filter(entry => isFavorite(entry.id)).length
-          : allItems.filter(entry => entry.category === cat.id).length;
+        const count = cat.id === 'all'
+          ? allItems.length
+          : cat.id === 'favorites'
+            ? allItems.filter(entry => isFavorite(entry.id)).length
+            : allItems.filter(entry => entry.category === cat.id).length;
         const name = document.createElement('span');
         name.textContent = cat.name || 'تصنيف';
         const badge = document.createElement('span');
@@ -3156,7 +3166,9 @@
       const allItems = getActiveItemList();
       let items = [];
 
-      if (currentActiveCategory === 'favorites') {
+      if (currentActiveCategory === 'all') {
+        items = allItems.slice();
+      } else if (currentActiveCategory === 'favorites') {
         items = allItems.filter(c => isFavorite(c.id));
       } else {
         items = allItems.filter(c => c.category === currentActiveCategory);
@@ -3423,7 +3435,11 @@
         const server=document.getElementById('iptv-server-url').value;
         const username=document.getElementById('iptv-username').value;
         const password=document.getElementById('iptv-password').value;
+        document.getElementById('login-server').value=server;
+        document.getElementById('login-username').value=username;
+        document.getElementById('login-password').value=password;
         closeAllModals();
+        document.getElementById('sonix-login-screen').classList.remove('hidden');
         performXtreamLogin(server,username,password,false);
       });
       document.getElementById('btn-search').addEventListener('click', () => openModal('modal-search'));

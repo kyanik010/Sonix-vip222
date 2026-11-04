@@ -228,18 +228,18 @@ fun UserInfoCard(modifier: Modifier = Modifier) {
         border = CardDefaults.outlinedCardBorder().copy(brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.1f), Color.Transparent)))
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = "اسم المستخدم: محمد الأحمد (VIP)", color = SonixTextWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(text = "اسم المستخدم: —", color = SonixTextWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(2.dp))
             Text(text = "رقم المشترك:", color = SonixTextMuted, fontSize = 9.sp)
-            Text(text = "386683283365", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+            Text(text = "—", color = SonixTextWhite, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
             Spacer(modifier = Modifier.height(2.dp))
             Text(text = "تاريخ انتهاء الصلاحية:", color = SonixTextMuted, fontSize = 9.sp)
-            Text(text = "٠٧/١٢/٢٠٢٦", color = SonixAccentGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = "غير محدد", color = SonixAccentGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(SonixSuccessGreen))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "اشتراك ساري المفعول", color = SonixSuccessGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(text = "لم يتم التحقق من الاشتراك", color = SonixTextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
