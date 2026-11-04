@@ -1525,6 +1525,7 @@
             <span class="user-card-date" id="account-expiry">—</span>
           </div>
         </div>
+        <div id="cache-status" class="cached-data-note" style="display:none;">بيانات مخزنة سابقاً — قد لا تعكس آخر تحديث من الخادم</div>
       </div>
 
     </div>
@@ -2865,6 +2866,7 @@
         seriesCategories,series:safeCopy(series)
       }));
       isOfflineCache = false;
+      const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display='none';
       renderCategories(); renderItems(); renderAudioSourcePicker();
     }
     function restoreXtreamCache() {
@@ -2876,7 +2878,9 @@
         seriesCategories=c.seriesCategories || []; series=c.series || [];
         liveChannels=liveChannels.map(x=>({...x,streamUrl:makeStreamUrl('live',x.id,{container_extension:x.containerExtension || 'ts'})}));
         movies=movies.map(x=>({...x,streamUrl:makeStreamUrl('movie',x.id,{container_extension:x.containerExtension || 'mp4'})}));
-        return liveChannels.length + movies.length + series.length > 0;
+        const hasContent=liveChannels.length + movies.length + series.length > 0;
+        const cacheNote=document.getElementById('cache-status'); if(cacheNote) cacheNote.style.display=hasContent?'block':'none';
+        return hasContent;
       } catch (_) { return false; }
     }
     function setLoginMessage(message, success) {
@@ -2910,8 +2914,10 @@
             activeCredentials={server:saved.server,username:saved.username,password:saved.password};
           } catch (_) {}
         }
-        if(offlineFallback && activeCredentials && restoreXtreamCache()) {
+        const networkFailure = /تعذر الاتصال|فشل اتصال الخادم|unable to resolve|failed to connect|connection refused|timed out|network/i.test(String(error.message || ''));
+        if(offlineFallback && networkFailure && activeCredentials && restoreXtreamCache()) {
           isOfflineCache=true;
+          updateAccount({username:activeCredentials.username});
           document.getElementById('sonix-login-screen').classList.add('hidden');
           showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
           renderCategories();renderItems();renderAudioSourcePicker();
