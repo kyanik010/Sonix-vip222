@@ -980,13 +980,40 @@
     }
     .player-playback-controls {
       display: none;
-      width: 100%;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 7px;
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 8;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
       align-items: stretch;
+      padding: 8px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 12px;
+      background: rgba(7, 12, 18, .88);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.42);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .18s ease, visibility .18s ease;
     }
     .live-player-col.has-active-playback .player-preview-actions { display: none; }
-    .live-player-col.has-active-playback .player-playback-controls { display: grid; }
+    .live-player-col.has-active-playback .player-playback-controls.visible {
+      display: grid;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .player-playback-controls .playback-control-btn { min-height: 38px; }
+    .player-playback-controls .player-quality-menu { grid-column: 1 / -1; }
+    .video-viewport.playback-controls-visible { cursor: default; }
+    @media (max-width: 900px) {
+      .player-playback-controls { left: 6px; right: 6px; bottom: 6px; padding: 6px; gap: 4px; }
+      .player-playback-controls .playback-control-btn { min-height: 34px; padding: 4px 3px; font-size: .65rem; }
+      .playback-control-btn svg { width: 15px; height: 15px; }
+    }
     .playback-control-btn {
       min-width: 0;
       min-height: 42px;
@@ -1740,19 +1767,6 @@
               <div style="font-size:0.8rem; color:var(--text-silver);">يرجى التأكد من اتصال الإنترنت أو اختيار مصدر آخر</div>
               <button id="player-retry-action" class="player-retry-btn focusable">إعادة المحاولة</button>
             </div>
-          </div>
-
-          <!-- Preview mode: keep only the existing preview and these two actions below it. -->
-          <div class="player-preview-actions">
-            <button id="btn-toggle-fav" class="action-btn focusable" title="إضافة للمفضلة">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              <span id="fav-btn-label">إضافة للمفضلة</span>
-            </button>
-            <button id="btn-open-epg" class="action-btn focusable" title="دليل البرامج">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-              <span>دليل البرامج</span>
-            </button>
-          </div>
 
           <!-- Playback-only controls: shown after the native player is ready. -->
           <div class="player-playback-controls" id="player-playback-controls">
@@ -1790,6 +1804,21 @@
               <button class="player-quality-option focusable" data-quality="480" aria-pressed="false">480p</button>
             </div>
           </div>
+          </div>
+
+          <!-- Preview mode: keep only the existing preview and these two actions below it. -->
+          <div class="player-preview-actions">
+            <button id="btn-toggle-fav" class="action-btn focusable" title="إضافة للمفضلة">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span id="fav-btn-label">إضافة للمفضلة</span>
+            </button>
+            <button id="btn-open-epg" class="action-btn focusable" title="دليل البرامج">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              <span>دليل البرامج</span>
+            </button>
+          </div>
+
+
         </div>
 
       </div>
@@ -2163,10 +2192,24 @@
         this.isFullscreen = false;
         this.isMuted = false;
         this.subtitlesEnabled = true;
+        this.controlsHideTimer = null;
         this.bindEvents();
       }
 
       bindEvents() {
+        if (this.viewport) {
+          this.viewport.addEventListener('pointerdown', () => this.showPlaybackControls());
+          this.viewport.addEventListener('click', (event) => {
+            if (!event.target.closest('.player-playback-controls, .exit-fullscreen-btn')) {
+              this.showPlaybackControls();
+            }
+          });
+        }
+        const playbackControls = document.getElementById('player-playback-controls');
+        if (playbackControls) {
+          playbackControls.addEventListener('pointerdown', () => this.showPlaybackControls());
+          playbackControls.addEventListener('click', () => this.showPlaybackControls());
+        }
         document.getElementById('player-retry-action').addEventListener('click', () => {
           if (this.currentItem) this.loadItem(this.currentItem);
         });
@@ -2213,6 +2256,30 @@
         window.addEventListener('scroll', () => this.syncNativeBounds(), true);
       }
 
+      showPlaybackControls() {
+        if (!this.currentItem || !window.NativePlayback || !window.NativePlayback.isActive()) return;
+        const controls = document.getElementById('player-playback-controls');
+        if (!controls) return;
+        controls.classList.add('visible');
+        if (this.viewport) this.viewport.classList.add('playback-controls-visible');
+        if (this.controlsHideTimer) clearTimeout(this.controlsHideTimer);
+        this.controlsHideTimer = setTimeout(() => this.hidePlaybackControls(), 10000);
+      }
+
+      hidePlaybackControls() {
+        const controls = document.getElementById('player-playback-controls');
+        if (controls) {
+          controls.classList.remove('visible');
+          const menu = document.getElementById('player-quality-menu');
+          if (menu) menu.classList.remove('open');
+          const qualityButton = document.getElementById('btn-quality');
+          if (qualityButton) qualityButton.setAttribute('aria-expanded', 'false');
+        }
+        if (this.viewport) this.viewport.classList.remove('playback-controls-visible');
+        if (this.controlsHideTimer) clearTimeout(this.controlsHideTimer);
+        this.controlsHideTimer = null;
+      }
+
       loadItem(item) {
         if (!item) return;
         if (dualAudioEngine && dualAudioEngine.isActive &&
@@ -2221,6 +2288,7 @@
           dualAudioEngine.stopExternalAudio(false);
         }
         this.currentItem = item;
+        this.hidePlaybackControls();
         const playerPanel=document.querySelector('.live-player-col'); if(playerPanel) playerPanel.classList.remove('has-active-playback');
         this.retryAttempts = 0;
         this.errorEl.classList.remove('active');
@@ -2381,6 +2449,7 @@
       stopAndRelease() {
         if (dualAudioEngine) dualAudioEngine.stopExternalAudio(false);
         if (window.NativePlayback) window.NativePlayback.stop();
+        this.hidePlaybackControls();
         const playerPanel=document.querySelector('.live-player-col'); if(playerPanel) playerPanel.classList.remove('has-active-playback');
         this.currentItem = null;
         this.updatePlaybackState(false);
@@ -2481,6 +2550,20 @@
             return;
           }
 
+          if (videoPlaybackController && videoPlaybackController.currentItem &&
+              (e.key === 'ArrowUp' || e.key === 'Up' || e.key === 'ArrowDown' || e.key === 'Down')) {
+            const controls = document.getElementById('player-playback-controls');
+            if (controls && !controls.classList.contains('visible')) {
+              e.preventDefault();
+              videoPlaybackController.showPlaybackControls();
+              const firstControl = controls.querySelector('.playback-control-btn:not([disabled])');
+              if (firstControl) this.focusElement(firstControl);
+              return;
+            }
+            if (controls && controls.classList.contains('visible')) {
+              videoPlaybackController.showPlaybackControls();
+            }
+          }
           switch (e.key) {
             case 'ArrowUp':
             case 'Up':
