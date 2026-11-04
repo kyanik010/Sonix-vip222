@@ -50,6 +50,34 @@ class XtreamBridge(context: Context) {
     }
 
     @JavascriptInterface
+    fun restoreSession(): String {
+        return try {
+            val credentials = vault.read() ?: throw IllegalStateException("لا يوجد اشتراك محفوظ")
+            val root = JSONObject(request(credentials.server, credentials.username, credentials.password, "player_api.php"))
+            val userInfo = XtreamAccountValidator.validate(root, System.currentTimeMillis())
+            JSONObject().put("success", true).put("user_info", userInfo)
+                .put("server_info", root.optJSONObject("server_info") ?: JSONObject()).toString()
+        } catch (error: Exception) {
+            errorResult(error)
+        }
+    }
+
+    @JavascriptInterface
+    fun streamUrl(type: String, streamId: String, extension: String): String {
+        return try {
+            val credentials = vault.read() ?: throw IllegalStateException("سجّل الدخول أولاً")
+            require(type in setOf("live", "movie", "series")) { "نوع البث غير مسموح" }
+            require(streamId.toLongOrNull() != null) { "معرف البث غير صالح" }
+            val safeExtension = extension.trim().lowercase().removePrefix(".")
+            require(safeExtension.matches(Regex("[a-z0-9]{1,8}"))) { "امتداد البث غير صالح" }
+            val url = "${credentials.server}/$type/${Uri.encode(credentials.username)}/${Uri.encode(credentials.password)}/${Uri.encode(streamId)}.$safeExtension"
+            JSONObject().put("success", true).put("url", url).toString()
+        } catch (error: Exception) {
+            errorResult(error)
+        }
+    }
+
+    @JavascriptInterface
     fun load(action: String): String {
         return try {
             val credentials = vault.read()
@@ -92,7 +120,6 @@ class XtreamBridge(context: Context) {
                 .put("success", true)
                 .put("server", credentials.server)
                 .put("username", credentials.username)
-                .put("password", credentials.password)
                 .toString()
         } catch (error: Exception) {
             errorResult(error)
