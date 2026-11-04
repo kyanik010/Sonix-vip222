@@ -2850,12 +2850,12 @@
         category:x.category_id == null ? '' : 'live-' + x.category_id,categoryName:categoryName(lc,'live-',x.category_id),
         logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('live',x.stream_id,x),audioOnlyUrl:'',
         epgChannelId:x.epg_channel_id || '',containerExtension:x.container_extension || 'ts'}));
-      movieCategories = mc;
+      movieCategories = mc.concat([{id:'favorites',name:'المفضلة'}]);
       movies = rawMovies.map((x,i) => ({id:String(x.stream_id),number:i+1,name:x.name || 'فيلم',
         category:x.category_id == null ? '' : 'movie-' + x.category_id,categoryName:categoryName(mc,'movie-',x.category_id),
         logo:x.stream_icon || '',logoText:'',streamUrl:makeStreamUrl('movie',x.stream_id,x),
         rating:x.rating || '',desc:x.plot || '',containerExtension:x.container_extension || 'mp4'}));
-      seriesCategories = sc;
+      seriesCategories = sc.concat([{id:'favorites',name:'المفضلة'}]);
       series = rawSeries.map((x,i) => ({id:String(x.series_id),seriesId:String(x.series_id),number:i+1,name:x.name || 'مسلسل',
         category:x.category_id == null ? '' : 'series-' + x.category_id,categoryName:categoryName(sc,'series-',x.category_id),
         logo:x.cover || '',logoText:'',streamUrl:'',rating:x.rating || '',desc:x.plot || ''}));
@@ -2904,9 +2904,13 @@
         document.getElementById('sonix-login-screen').classList.add('hidden');
         showToast('تم التحقق من الاشتراك وتحميل محتوى الخادم');
       } catch(error) {
-        if(offlineFallback && restoreXtreamCache()) {
-          const saved=parseNative(window.XtreamBridge.savedCredentials());
-          activeCredentials={server:saved.server,username:saved.username,password:saved.password};
+        if (offlineFallback) {
+          try {
+            const saved=parseNative(window.XtreamBridge.savedCredentials());
+            activeCredentials={server:saved.server,username:saved.username,password:saved.password};
+          } catch (_) {}
+        }
+        if(offlineFallback && activeCredentials && restoreXtreamCache()) {
           isOfflineCache=true;
           document.getElementById('sonix-login-screen').classList.add('hidden');
           showToast('تعذر الاتصال؛ يتم عرض آخر بيانات مخزنة');
@@ -3294,6 +3298,13 @@
       document.getElementById('btn-refresh').addEventListener('click', refreshXtreamContent);
       document.getElementById('btn-profile').addEventListener('click', () => openModal('modal-profile'));
       document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'));
+      document.getElementById('btn-save-iptv').addEventListener('click', () => {
+        const server=document.getElementById('iptv-server-url').value;
+        const username=document.getElementById('iptv-username').value;
+        const password=document.getElementById('iptv-password').value;
+        closeAllModals();
+        performXtreamLogin(server,username,password,false);
+      });
       document.getElementById('btn-search').addEventListener('click', () => openModal('modal-search'));
 
       // 8. Player Actions
@@ -3407,7 +3418,7 @@
       });
 
       // 12. Focus Channels Card Initially
-      const initialFocus = document.getElementById('card-channels');
+      const initialFocus = document.getElementById('login-server') || document.getElementById('card-channels');
       if (initialFocus && remoteNavigator) {
         remoteNavigator.focusElement(initialFocus);
       }
