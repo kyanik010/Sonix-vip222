@@ -2438,6 +2438,12 @@
         this.isMuted = false;
         this.subtitlesEnabled = sonixSettings.subtitles;
         this.controlsHideTimer = null;
+        this.pendingPlayToken = 0;
+        this.viewportResizeObserver = null;
+        if (this.viewport && typeof ResizeObserver !== 'undefined') {
+          this.viewportResizeObserver = new ResizeObserver(() => this.syncNativeBounds());
+          this.viewportResizeObserver.observe(this.viewport);
+        }
         this.bindEvents();
       }
 
@@ -2551,28 +2557,37 @@
           return;
         }
         this.updateUiInfo(item);
-        const rect = this.viewport ? this.viewport.getBoundingClientRect() : null;
-        if (this.viewport && rect) {
-          const style = window.getComputedStyle(this.viewport);
-          console.info('[SONIXSurface] viewport before native play', JSON.stringify({
-            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-            display: style.display, visibility: style.visibility, opacity: style.opacity,
-            viewportBackground: style.backgroundColor,
-            bodyBackground: window.getComputedStyle(document.body).backgroundColor,
-            dpr: window.devicePixelRatio,
-            webViewViewport: { width: window.innerWidth, height: window.innerHeight }
-          }));
-        }
-        if (!rect || rect.width <= 0 || rect.height <= 0) {
-          if (window.NativePlayback) window.NativePlayback.stop();
-          this.showError('تعذر تحديد مساحة عرض الفيديو.');
-          return;
-        }
-        // Live channels, movies and series episodes all use the same native Media3 player.
-        console.info('[SONIXSurface] sending native bounds', rect.left, rect.top, rect.width, rect.height);
-        window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height, window.devicePixelRatio || 1);
-        if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
-        if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
+        // Measure only after the browser has completed the viewport's layout/reflow.
+        // The token prevents an older delayed request from starting over a newer item.
+        const playToken = ++this.pendingPlayToken;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (playToken !== this.pendingPlayToken || this.currentItem !== item) return;
+            const viewport = this.viewport;
+            if (!viewport || !viewport.isConnected) {
+              this.showError('تعذر تحديد مساحة عرض الفيديو.');
+              return;
+            }
+            const style = window.getComputedStyle(viewport);
+            const rect = viewport.getBoundingClientRect();
+            if (style.display === 'none' || style.visibility === 'hidden' ||
+                Number(style.opacity) === 0 || rect.width <= 0 || rect.height <= 0) {
+              this.showError('نافذة معاينة الفيديو غير ظاهرة أو مساحتها غير صالحة.');
+              return;
+            }
+            const pixelRatio = window.devicePixelRatio || 1;
+            const cornerRadius = this.isFullscreen ? 0 : 16;
+            console.info('[SONIXSurface] stable viewport before native play', JSON.stringify({
+              rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+              display: style.display, visibility: style.visibility, opacity: style.opacity,
+              dpr: pixelRatio, cornerRadius
+            }));
+            // Native Media3 remains the sole video renderer; Android applies the matching clip.
+            window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height, pixelRatio, cornerRadius);
+            if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
+            if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
+          }, 60);
+        }));
       }
 
       syncNativeBounds() {
@@ -2584,7 +2599,8 @@
           // bounds when the viewport is hidden/collapsed leaves a stale native overlay.
           window.NativePlayback.resize(
             rect.left || 0, rect.top || 0,
-            rect.width || 0, rect.height || 0, window.devicePixelRatio || 1
+            rect.width || 0, rect.height || 0,
+            window.devicePixelRatio || 1, this.isFullscreen ? 0 : 16
           );
         });
       }
@@ -2760,6 +2776,7 @@
       }
 
       stopAndRelease() {
+        this.pendingPlayToken++;
         if (dualAudioEngine) dualAudioEngine.stopExternalAudio(false);
         if (window.NativePlayback) window.NativePlayback.stop();
         this.hidePlaybackControls();
