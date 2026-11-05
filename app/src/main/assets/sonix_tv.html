@@ -824,10 +824,17 @@
       overflow-x: hidden;
     }
 
+    /* Dedicated preview host: keep a real, non-collapsing 16:9 slot for
+       the native Media3 PlayerView that is positioned over this WebView area. */
     .video-viewport {
       position: relative;
+      display: block;
+      flex: 0 0 auto;
       width: 100%;
+      min-width: 0;
+      min-height: clamp(168px, 17.7vw, 220px);
       aspect-ratio: 16 / 9;
+      box-sizing: border-box;
       background: transparent;
       border-radius: 16px;
       overflow: hidden;
@@ -2560,36 +2567,52 @@
         // Release the previous native surface immediately; do not leave the old
         // stream visible while the new viewport waits for its final layout pass.
         window.NativePlayback.stop();
-        // Measure only after the browser has completed the viewport's layout/reflow.
-        // The token prevents an older delayed request from starting over a newer item.
+        // The preview host is a dedicated, non-shrinking layout slot. Still wait
+        // for WebView layout to publish real bounds; transient zero-size frames are
+        // retried instead of being mistaken for a stream/player failure.
         const playToken = ++this.pendingPlayToken;
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (playToken !== this.pendingPlayToken || this.currentItem !== item) return;
-            const viewport = this.viewport;
-            if (!viewport || !viewport.isConnected) {
-              this.showError('تعذر تحديد مساحة عرض الفيديو.');
+        const tryStartNativePlayback = (attempt = 0) => {
+          if (playToken !== this.pendingPlayToken || this.currentItem !== item) return;
+          const viewport = this.viewport;
+          if (!viewport || !viewport.isConnected) {
+            this.showError('تعذر تحديد مساحة عرض الفيديو.');
+            return;
+          }
+          const style = window.getComputedStyle(viewport);
+          const rect = viewport.getBoundingClientRect();
+          const visible = style.display !== 'none' && style.visibility !== 'hidden' &&
+            Number(style.opacity) !== 0;
+          if (!visible || rect.width <= 0 || rect.height <= 0) {
+            if (attempt < 15) {
+              requestAnimationFrame(() => setTimeout(() => tryStartNativePlayback(attempt + 1), 80));
               return;
             }
-            const style = window.getComputedStyle(viewport);
-            const rect = viewport.getBoundingClientRect();
-            if (style.display === 'none' || style.visibility === 'hidden' ||
-                Number(style.opacity) === 0 || rect.width <= 0 || rect.height <= 0) {
-              this.showError('نافذة معاينة الفيديو غير ظاهرة أو مساحتها غير صالحة.');
-              return;
-            }
-            const pixelRatio = window.devicePixelRatio || 1;
-            const cornerRadius = this.isFullscreen ? 0 : 16;
-            console.info('[SONIXSurface] stable viewport before native play', JSON.stringify({
+            console.error('[SONIXSurface] preview host did not obtain visible bounds', JSON.stringify({
               rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
               display: style.display, visibility: style.visibility, opacity: style.opacity,
-              dpr: pixelRatio, cornerRadius
+              parent: viewport.parentElement ? {
+                width: viewport.parentElement.getBoundingClientRect().width,
+                height: viewport.parentElement.getBoundingClientRect().height,
+                display: window.getComputedStyle(viewport.parentElement).display
+              } : null
             }));
-            // Native Media3 remains the sole video renderer; Android applies the matching clip.
-            window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height, pixelRatio, cornerRadius);
-            if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
-            if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
-          }, 60);
+            this.showError('تعذر تجهيز مساحة معاينة الفيديو. أعد المحاولة.');
+            return;
+          }
+          const pixelRatio = window.devicePixelRatio || 1;
+          const cornerRadius = this.isFullscreen ? 0 : 16;
+          console.info('[SONIXSurface] valid preview host before native play', JSON.stringify({
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            display: style.display, visibility: style.visibility, opacity: style.opacity,
+            dpr: pixelRatio, cornerRadius, attempt
+          }));
+          // Native Media3 remains the sole video renderer; Android applies the matching clip.
+          window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height, pixelRatio, cornerRadius);
+          if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
+          if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
+        };
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          setTimeout(() => tryStartNativePlayback(), 80);
         }));
       }
 
