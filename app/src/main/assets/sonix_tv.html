@@ -835,6 +835,16 @@
       border: 1px solid var(--border-panel);
       cursor: pointer;
     }
+    /* Fullscreen is portaled directly under body so ancestor overflow,
+       transforms and stacking contexts cannot trap the video inside the player column. */
+    body.sonix-video-fullscreen > *:not(.video-viewport) {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+    body.sonix-video-fullscreen > .video-viewport {
+      visibility: visible !important;
+      pointer-events: auto !important;
+    }
     .video-viewport.is-fullscreen {
       position: fixed !important;
       inset: 0 !important;
@@ -2420,6 +2430,8 @@
         this.retryAttempts = 0;
         this.maxRetries = 3;
         this.isFullscreen = false;
+        this.fullscreenOriginalParent = null;
+        this.fullscreenOriginalNextSibling = null;
         this.isMuted = false;
         this.subtitlesEnabled = sonixSettings.subtitles;
         this.controlsHideTimer = null;
@@ -2659,12 +2671,40 @@
 
       toggleFullscreen() {
         if (!this.viewport) return;
-        this.isFullscreen = !this.isFullscreen;
-        this.viewport.classList.toggle('is-fullscreen', this.isFullscreen);
-        this.syncNativeBounds();
+        const enteringFullscreen = !this.isFullscreen;
+
+        if (enteringFullscreen) {
+          // Move the viewport out of the app's multi-column layout. This avoids
+          // fixed-position elements being clipped by transformed/overflow ancestors.
+          this.fullscreenOriginalParent = this.viewport.parentNode;
+          this.fullscreenOriginalNextSibling = this.viewport.nextSibling;
+          document.body.appendChild(this.viewport);
+          document.body.classList.add('sonix-video-fullscreen');
+          this.isFullscreen = true;
+          this.viewport.classList.add('is-fullscreen');
+        } else {
+          this.isFullscreen = false;
+          this.viewport.classList.remove('is-fullscreen');
+          document.body.classList.remove('sonix-video-fullscreen');
+          const parent = this.fullscreenOriginalParent;
+          if (parent) {
+            if (this.fullscreenOriginalNextSibling &&
+                this.fullscreenOriginalNextSibling.parentNode === parent) {
+              parent.insertBefore(this.viewport, this.fullscreenOriginalNextSibling);
+            } else {
+              parent.appendChild(this.viewport);
+            }
+          }
+          this.fullscreenOriginalParent = null;
+          this.fullscreenOriginalNextSibling = null;
+        }
+
+        // Wait for the portal/layout transition, then resize the native surface
+        // to exactly match the new viewport rectangle.
+        requestAnimationFrame(() => this.syncNativeBounds());
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
-          showToast('تم التكبير إلى ملء الشاشة (انقر مرتين أو اضغط زر الرجوع للتصغير)');
+          showToast('تم التكبير إلى ملء الشاشة (اضغط تصغير الشاشة للخروج)');
           if (exitBtn && remoteNavigator) remoteNavigator.focusElement(exitBtn);
         } else {
           showToast('تم الخروج من وضع ملء الشاشة');
