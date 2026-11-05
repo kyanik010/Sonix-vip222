@@ -848,7 +848,8 @@
       margin: 0 !important;
       padding: 0 !important;
       box-shadow: none !important;
-      background: #000 !important;
+      /* Keep the native video layer visible through the transparent WebView. */
+      background: transparent !important;
       aspect-ratio: auto !important;
     }
     .exit-fullscreen-btn {
