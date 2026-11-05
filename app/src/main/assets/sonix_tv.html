@@ -1063,27 +1063,26 @@
     .player-playback-controls {
       display: none;
       position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
       z-index: 8;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 4px;
-      align-items: stretch;
-      padding: 5px;
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 10px;
-      background: rgba(7, 12, 18, .90);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 6px 18px rgba(0,0,0,.38);
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: space-around;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border: 1px solid rgba(190, 202, 214, .16);
+      border-radius: 14px;
+      background: rgba(10, 15, 22, .76);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.035);
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
       transition: opacity .18s ease, visibility .18s ease;
-    }
-    .live-player-col.is-live-mode .player-playback-controls,
-    .video-viewport.is-live-mode .player-playback-controls {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
     }
     .live-player-col.is-live-mode #ctrl-seek-back,
     .live-player-col.is-live-mode #ctrl-seek-forward,
@@ -1097,23 +1096,61 @@
       pointer-events: auto;
     }
     .player-playback-controls .playback-control-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      flex: 1 1 0;
       min-width: 0;
-      min-height: 38px;
-      padding: 3px 1px;
+      min-height: 40px;
+      padding: 5px 4px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 2px;
-      font-size: .58rem;
+      gap: 4px;
+      border: 1px solid transparent !important;
+      border-radius: 9px;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--text-silver, #C2CBD4) !important;
+      font-family: var(--font-family);
+      font-size: .60rem;
+      font-weight: 700;
       line-height: 1.1;
       white-space: nowrap;
       overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: color .16s ease, background .16s ease, border-color .16s ease, filter .16s ease;
     }
     .player-playback-controls .playback-control-btn svg {
-      width: 15px;
-      height: 15px;
+      width: 17px;
+      height: 17px;
       flex: 0 0 auto;
+      color: currentColor;
+      stroke: currentColor;
+      fill: none;
+      transition: color .16s ease, filter .16s ease;
+    }
+    .player-playback-controls .playback-control-btn:focus,
+    .player-playback-controls .playback-control-btn:focus-visible,
+    .player-playback-controls .playback-control-btn[aria-pressed="true"],
+    .player-playback-controls .playback-control-btn.is-active {
+      outline: none;
+      color: var(--accent-gold) !important;
+      background: rgba(190, 155, 75, .13) !important;
+      border-color: rgba(212, 175, 90, .28) !important;
+      filter: drop-shadow(0 0 5px rgba(212, 175, 90, .22));
+    }
+    .player-playback-controls .playback-control-btn:focus svg,
+    .player-playback-controls .playback-control-btn:focus-visible svg,
+    .player-playback-controls .playback-control-btn[aria-pressed="true"] svg,
+    .player-playback-controls .playback-control-btn.is-active svg {
+      color: var(--accent-gold);
+      stroke: currentColor;
+      filter: drop-shadow(0 0 4px rgba(212, 175, 90, .35));
+    }
+    .player-playback-controls .playback-control-btn:active {
+      background: rgba(255,255,255,.07) !important;
     }
     .player-playback-controls .player-quality-menu {
       position: absolute;
@@ -1142,9 +1179,9 @@
     }
     .player-quality-option[aria-pressed="true"] { color: var(--accent-gold); border-color: var(--accent-gold); }
     @media (max-width: 900px) {
-      .player-playback-controls { left: 4px; right: 4px; bottom: 4px; padding: 4px; gap: 3px; }
-      .player-playback-controls .playback-control-btn { min-height: 34px; font-size: .52rem; }
-      .player-playback-controls .playback-control-btn svg { width: 13px; height: 13px; }
+      .player-playback-controls { left: 5px; right: 5px; bottom: 5px; padding: 5px 6px; gap: 3px; border-radius: 11px; }
+      .player-playback-controls .playback-control-btn { min-height: 35px; padding: 4px 2px; gap: 3px; font-size: .52rem; }
+      .player-playback-controls .playback-control-btn svg { width: 14px; height: 14px; }
     }
     .player-channel-title {
       font-size: clamp(1.1rem, 1.6vw, 1.35rem);
