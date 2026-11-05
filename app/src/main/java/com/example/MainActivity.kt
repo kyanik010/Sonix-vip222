@@ -5,9 +5,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
+import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.Gravity
 import android.view.WindowManager
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.drawable.Drawable
 import android.graphics.Shader
 import android.graphics.RadialGradient
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
     private var rootContainer: FrameLayout? = null
     private var nativePlayer: ExoPlayer? = null
     private var nativePlayerView: PlayerView? = null
+    private var nativePlayerCornerRadiusPx = 0f
     private var resumeNativePlayerAfterPause = false
     @Volatile private var nativePlayerActive = false
     @Volatile private var nativePlayerPlaying = false
@@ -141,7 +145,7 @@ class MainActivity : ComponentActivity() {
 
     private inner class NativePlaybackBridge {
         @android.webkit.JavascriptInterface
-        fun play(url: String, left: Float, top: Float, width: Float, height: Float, pixelRatio: Float) {
+        fun play(url: String, left: Float, top: Float, width: Float, height: Float, pixelRatio: Float, cornerRadiusCssPx: Float) {
             runOnUiThread {
                 try {
                     stopNativePlayer()
@@ -150,6 +154,7 @@ class MainActivity : ComponentActivity() {
                         "رابط البث غير صالح"
                     }
                     val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
+                    nativePlayerCornerRadiusPx = cssPixelsToAndroidPixels(cornerRadiusCssPx.coerceIn(0f, 32f), pixelRatio).toFloat()
                     val params = nativePlayerLayoutParams(left, top, width, height, pixelRatio)
                         ?: throw IllegalStateException("مساحة معاينة الفيديو غير صالحة")
 
@@ -175,6 +180,17 @@ class MainActivity : ComponentActivity() {
                         setBackgroundColor(Color.TRANSPARENT)
                         clipChildren = true
                         clipToPadding = true
+                        // PlayerView is a native sibling of the WebView, so CSS overflow
+                        // cannot clip it. Apply the preview's rounded clipping natively.
+                        clipToOutline = true
+                        outlineProvider = object : ViewOutlineProvider() {
+                            override fun getOutline(view: View, outline: Outline) {
+                                outline.setRoundRect(
+                                    0, 0, view.width, view.height,
+                                    nativePlayerCornerRadiusPx.coerceAtLeast(0f)
+                                )
+                            }
+                        }
                         isFocusable = false
                         isFocusableInTouchMode = false
                     }
@@ -407,9 +423,11 @@ class MainActivity : ComponentActivity() {
         fun isExternalAudioActive(): Boolean = externalAudioActive
 
         @android.webkit.JavascriptInterface
-        fun resize(left: Float, top: Float, width: Float, height: Float, pixelRatio: Float) {
+        fun resize(left: Float, top: Float, width: Float, height: Float, pixelRatio: Float, cornerRadiusCssPx: Float) {
             runOnUiThread {
                 val view = nativePlayerView ?: return@runOnUiThread
+                nativePlayerCornerRadiusPx = cssPixelsToAndroidPixels(cornerRadiusCssPx.coerceIn(0f, 32f), pixelRatio).toFloat()
+                view.invalidateOutline()
                 val params = nativePlayerLayoutParams(left, top, width, height, pixelRatio)
                 if (params == null) {
                     view.visibility = android.view.View.INVISIBLE
@@ -654,6 +672,7 @@ class MainActivity : ComponentActivity() {
             rootContainer?.removeView(playerView)
         }
         nativePlayerView = null
+        nativePlayerCornerRadiusPx = 0f
         player?.release()
         nativePlayer = null
         nativePlayerActive = false
