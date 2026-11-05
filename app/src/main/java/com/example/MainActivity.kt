@@ -162,8 +162,8 @@ class MainActivity : ComponentActivity() {
                     val playerView = LayoutInflater.from(this@MainActivity)
                         .inflate(R.layout.native_player_view, container, false) as PlayerView
                     playerView.apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        setUseController(false)
+                        setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT)
                         setKeepContentOnPlayerReset(true)
                         setShutterBackgroundColor(Color.TRANSPARENT)
                         setBackgroundColor(Color.TRANSPARENT)
