@@ -2557,6 +2557,9 @@
           return;
         }
         this.updateUiInfo(item);
+        // Release the previous native surface immediately; do not leave the old
+        // stream visible while the new viewport waits for its final layout pass.
+        window.NativePlayback.stop();
         // Measure only after the browser has completed the viewport's layout/reflow.
         // The token prevents an older delayed request from starting over a newer item.
         const playToken = ++this.pendingPlayToken;
