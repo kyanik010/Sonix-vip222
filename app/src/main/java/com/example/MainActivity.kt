@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
+import android.view.Gravity
 import android.view.WindowManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -108,7 +109,12 @@ class MainActivity : ComponentActivity() {
             }
 
             webView = wv
-            val root = FrameLayout(this).apply { background = SonixBackgroundDrawable() }
+            val root = FrameLayout(this).apply {
+                background = SonixBackgroundDrawable()
+                // Keep the native video child clipped to the application window.
+                clipChildren = true
+                clipToPadding = true
+            }
             root.addView(wv, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -176,6 +182,9 @@ class MainActivity : ComponentActivity() {
                     nativePlayerActive = true
                     nativePlayerPlaying = false
                     player.volume = if (externalAudioActive || nativeVideoMuted) 0f else 1f
+                    // Use an explicit physical LEFT gravity: START would resolve to RIGHT in RTL
+                    // layouts and can place the native layer outside the HTML viewport.
+                    params.gravity = Gravity.TOP or Gravity.LEFT
                     container.addView(playerView, 0, params)
                     playerView.player = player
                     playerView.addOnLayoutChangeListener { view, l, t, r, b, _, _, _, _ ->
@@ -400,8 +409,13 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 val view = nativePlayerView ?: return@runOnUiThread
                 val params = nativePlayerLayoutParams(left, top, width, height)
-                    ?: return@runOnUiThread
+                if (params == null) {
+                    view.visibility = android.view.View.INVISIBLE
+                    return@runOnUiThread
+                }
+                params.gravity = Gravity.TOP or Gravity.LEFT
                 view.layoutParams = params
+                view.visibility = android.view.View.VISIBLE
             }
         }
     }
@@ -418,22 +432,36 @@ class MainActivity : ComponentActivity() {
         val web = webView ?: return null
         val root = rootContainer ?: return null
         val density = resources.displayMetrics.density
-        // getBoundingClientRect() reports CSS pixels. Include the WebView page zoom
-        // and its actual on-screen origin instead of assuming a 1:1 root coordinate space.
+        // getBoundingClientRect() is in CSS px; Android layout params are physical px.
+        // Use screen coordinates for both views so status/navigation/window insets cancel
+        // consistently, then clip the rectangle to the actual root bounds.
         val scale = density * web.scale
         val webLocation = IntArray(2)
         val rootLocation = IntArray(2)
-        web.getLocationInWindow(webLocation)
-        root.getLocationInWindow(rootLocation)
-        val originX = webLocation[0] - rootLocation[0]
-        val originY = webLocation[1] - rootLocation[1]
+        web.getLocationOnScreen(webLocation)
+        root.getLocationOnScreen(rootLocation)
 
-        return FrameLayout.LayoutParams(
-            cssPixelsToAndroidPixels(width, density, web.scale).coerceAtLeast(1),
-            cssPixelsToAndroidPixels(height, density, web.scale).coerceAtLeast(1)
-        ).apply {
-            leftMargin = originX + (left * scale).roundToInt()
-            topMargin = originY + (top * scale).roundToInt()
+        val requestedLeft = webLocation[0] - rootLocation[0] + (left * scale).roundToInt()
+        val requestedTop = webLocation[1] - rootLocation[1] + (top * scale).roundToInt()
+        val requestedRight = requestedLeft + cssPixelsToAndroidPixels(width, density, web.scale)
+        val requestedBottom = requestedTop + cssPixelsToAndroidPixels(height, density, web.scale)
+        val rootWidth = root.width
+        val rootHeight = root.height
+        if (rootWidth <= 0 || rootHeight <= 0) return null
+
+        // A stale/out-of-window DOM rectangle must never create a full-screen native overlay.
+        val clippedLeft = requestedLeft.coerceIn(0, rootWidth)
+        val clippedTop = requestedTop.coerceIn(0, rootHeight)
+        val clippedRight = requestedRight.coerceIn(0, rootWidth)
+        val clippedBottom = requestedBottom.coerceIn(0, rootHeight)
+        val clippedWidth = clippedRight - clippedLeft
+        val clippedHeight = clippedBottom - clippedTop
+        if (clippedWidth <= 0 || clippedHeight <= 0) return null
+
+        return FrameLayout.LayoutParams(clippedWidth, clippedHeight).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = clippedLeft
+            topMargin = clippedTop
         }
     }
 
