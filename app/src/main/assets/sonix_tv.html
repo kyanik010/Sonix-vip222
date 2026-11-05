@@ -2717,7 +2717,8 @@
             const canRestoreFocus = previousFocus && previousFocus.isConnected &&
               previousFocus.getClientRects().length > 0;
             const selectedRow = document.querySelector('.channel-row.selected');
-            remoteNavigator.focusElement(canRestoreFocus ? previousFocus : selectedRow);
+            const fallbackFocus = selectedRow || remoteNavigator.getVisibleFocusableElements()[0];
+            remoteNavigator.focusElement(canRestoreFocus ? previousFocus : fallbackFocus);
           }
         }
 
@@ -2863,7 +2864,10 @@
           }
 
           if (videoPlaybackController && videoPlaybackController.currentItem &&
-              (e.key === 'ArrowUp' || e.key === 'Up' || e.key === 'ArrowDown' || e.key === 'Down')) {
+              (e.key === 'ArrowUp' || e.key === 'Up' ||
+               e.key === 'ArrowDown' || e.key === 'Down' ||
+               e.key === 'ArrowLeft' || e.key === 'Left' ||
+               e.key === 'ArrowRight' || e.key === 'Right')) {
             const controls = document.getElementById('player-playback-controls');
             if (videoPlaybackController.isFullscreen && controls && !controls.classList.contains('visible')) {
               e.preventDefault();
