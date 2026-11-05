@@ -141,7 +141,7 @@ class MainActivity : ComponentActivity() {
 
     private inner class NativePlaybackBridge {
         @android.webkit.JavascriptInterface
-        fun play(url: String, left: Float, top: Float, width: Float, height: Float) {
+        fun play(url: String, left: Float, top: Float, width: Float, height: Float, pixelRatio: Float) {
             runOnUiThread {
                 try {
                     stopNativePlayer()
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
                         "رابط البث غير صالح"
                     }
                     val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
-                    val params = nativePlayerLayoutParams(left, top, width, height)
+                    val params = nativePlayerLayoutParams(left, top, width, height, pixelRatio)
                         ?: throw IllegalStateException("مساحة معاينة الفيديو غير صالحة")
 
                     val httpDataSourceFactory = DefaultHttpDataSource.Factory()
@@ -173,6 +173,8 @@ class MainActivity : ComponentActivity() {
                         setKeepContentOnPlayerReset(true)
                         setShutterBackgroundColor(Color.TRANSPARENT)
                         setBackgroundColor(Color.TRANSPARENT)
+                        clipChildren = true
+                        clipToPadding = true
                         isFocusable = false
                         isFocusableInTouchMode = false
                     }
@@ -405,10 +407,10 @@ class MainActivity : ComponentActivity() {
         fun isExternalAudioActive(): Boolean = externalAudioActive
 
         @android.webkit.JavascriptInterface
-        fun resize(left: Float, top: Float, width: Float, height: Float) {
+        fun resize(left: Float, top: Float, width: Float, height: Float, pixelRatio: Float) {
             runOnUiThread {
                 val view = nativePlayerView ?: return@runOnUiThread
-                val params = nativePlayerLayoutParams(left, top, width, height)
+                val params = nativePlayerLayoutParams(left, top, width, height, pixelRatio)
                 if (params == null) {
                     view.visibility = android.view.View.INVISIBLE
                     return@runOnUiThread
@@ -424,44 +426,63 @@ class MainActivity : ComponentActivity() {
         left: Float,
         top: Float,
         width: Float,
-        height: Float
+        height: Float,
+        pixelRatio: Float
     ): FrameLayout.LayoutParams? {
         if (!left.isFinite() || !top.isFinite() || !width.isFinite() || !height.isFinite()) return null
+        if (!pixelRatio.isFinite() || pixelRatio !in 0.5f..8f) return null
         if (width <= 0f || height <= 0f) return null
 
         val web = webView ?: return null
         val root = rootContainer ?: return null
-        val density = resources.displayMetrics.density
-        // getBoundingClientRect() is in CSS px; Android layout params are physical px.
-        // Use screen coordinates for both views so status/navigation/window insets cancel
-        // consistently, then clip the rectangle to the actual root bounds.
-        val scale = density * web.scale
+        // DOMRect values are CSS pixels. Use the same devicePixelRatio reported by
+        // the WebView page instead of WebView.getScale(), which is deprecated and
+        // can be stale while the WebView is laying out or changing scale.
         val webLocation = IntArray(2)
         val rootLocation = IntArray(2)
         web.getLocationOnScreen(webLocation)
         root.getLocationOnScreen(rootLocation)
 
-        val requestedLeft = webLocation[0] - rootLocation[0] + (left * scale).roundToInt()
-        val requestedTop = webLocation[1] - rootLocation[1] + (top * scale).roundToInt()
-        val requestedRight = requestedLeft + cssPixelsToAndroidPixels(width, density, web.scale)
-        val requestedBottom = requestedTop + cssPixelsToAndroidPixels(height, density, web.scale)
+        val requestedLeft = webLocation[0] - rootLocation[0] + (left * pixelRatio).roundToInt()
+        val requestedTop = webLocation[1] - rootLocation[1] + (top * pixelRatio).roundToInt()
+        val requestedRight = requestedLeft + cssPixelsToAndroidPixels(width, pixelRatio)
+        val requestedBottom = requestedTop + cssPixelsToAndroidPixels(height, pixelRatio)
         val rootWidth = root.width
         val rootHeight = root.height
         if (rootWidth <= 0 || rootHeight <= 0) return null
 
-        // A stale/out-of-window DOM rectangle must never create a full-screen native overlay.
-        val clippedLeft = requestedLeft.coerceIn(0, rootWidth)
-        val clippedTop = requestedTop.coerceIn(0, rootHeight)
-        val clippedRight = requestedRight.coerceIn(0, rootWidth)
-        val clippedBottom = requestedBottom.coerceIn(0, rootHeight)
-        val clippedWidth = clippedRight - clippedLeft
-        val clippedHeight = clippedBottom - clippedTop
-        if (clippedWidth <= 0 || clippedHeight <= 0) return null
+        // Do not clamp a bad/stale DOM rectangle to the nearest screen edge:
+        // that turns a coordinate error into a visibly cropped floating video.
+        // Allow only a 2 px rounding tolerance at the window boundary.
+        if (requestedLeft < -2 || requestedTop < -2 ||
+            requestedRight > rootWidth + 2 || requestedBottom > rootHeight + 2
+        ) {
+            android.util.Log.w(
+                "SONIXSurface",
+                "Rejecting out-of-root viewport rect: requested=" +
+                    "${requestedLeft},${requestedTop}-${requestedRight},${requestedBottom} " +
+                    "root=${rootWidth}x${rootHeight} cssRatio=${pixelRatio}"
+            )
+            return null
+        }
 
-        return FrameLayout.LayoutParams(clippedWidth, clippedHeight).apply {
+        val safeLeft = requestedLeft.coerceIn(0, rootWidth)
+        val safeTop = requestedTop.coerceIn(0, rootHeight)
+        val safeRight = requestedRight.coerceIn(0, rootWidth)
+        val safeBottom = requestedBottom.coerceIn(0, rootHeight)
+        val safeWidth = safeRight - safeLeft
+        val safeHeight = safeBottom - safeTop
+        if (safeWidth <= 0 || safeHeight <= 0) return null
+
+        android.util.Log.d(
+            "SONIXSurface",
+            "Mapped viewport css=${left},${top} ${width}x${height} ratio=${pixelRatio} " +
+                "native=${safeLeft},${safeTop} ${safeWidth}x${safeHeight}"
+        )
+        return FrameLayout.LayoutParams(safeWidth, safeHeight).apply {
             gravity = Gravity.TOP or Gravity.LEFT
-            leftMargin = clippedLeft
-            topMargin = clippedTop
+            leftMargin = safeLeft
+            topMargin = safeTop
         }
     }
 
@@ -784,5 +805,5 @@ internal fun externalAudioRetryDelayMs(attempt: Int): Long {
 }
 
 
-internal fun cssPixelsToAndroidPixels(value: Float, density: Float, pageScale: Float): Int =
-    (value * density * pageScale).roundToInt()
+internal fun cssPixelsToAndroidPixels(value: Float, pixelRatio: Float): Int =
+    (value * pixelRatio).roundToInt()
