@@ -9,6 +9,22 @@ import java.io.File
 class ExampleRobolectricTest {
 
     @Test
+    fun cssPreviewBoundsAreScaledByDensityAndPageZoom() {
+        assertEquals(360, cssPixelsToAndroidPixels(100f, 3f, 1.2f))
+        assertEquals(0, cssPixelsToAndroidPixels(0f, 2f, 1f))
+    }
+
+    @Test
+    fun nativePlayerViewUsesTextureSurfaceAndTransparentShutter() {
+        val layout = File("src/main/res/layout/native_player_view.xml")
+        assertTrue("native PlayerView layout must exist", layout.exists())
+        val xml = layout.readText()
+        assertTrue(xml.contains("""app:surface_type="texture_view""""))
+        assertTrue(xml.contains("""app:use_controller="false""""))
+        assertTrue(xml.contains("""app:shutter_background_color="@android:color/transparent""""))
+    }
+
+    @Test
     fun verifyAppNameConstant() {
         val appName = "SONIX TV"
         assertEquals("SONIX TV", appName)
