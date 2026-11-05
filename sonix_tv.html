@@ -576,13 +576,14 @@
     /* Column 2: Categories Column (~22%) */
     .live-categories-col {
       width: clamp(190px, 22vw, 270px);
+      min-width: 0;
       min-height: 0;
       background: #0E141B;
       border-left: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      flex-shrink: 0;
+      flex: 0 1 clamp(190px, 22vw, 270px);
     }
     .col-header-filter {
       padding: 10px 12px;
@@ -653,13 +654,14 @@
     /* Column 3: Items / Channels Column (~28%) */
     .live-channels-col {
       width: clamp(230px, 28vw, 360px);
+      min-width: 0;
       min-height: 0;
       background: #111820;
       border-left: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      flex-shrink: 0;
+      flex: 0 1 clamp(230px, 28vw, 360px);
     }
     .channels-header-badge {
       padding: 10px 14px;
@@ -760,7 +762,8 @@
 
     /* Column 4: Player / Details Column (~46%) */
     .live-player-col {
-      flex: 1;
+      flex: 1 1 0%;
+      min-width: 0;
       min-height: 0;
       background: #0A0F14;
       display: flex;
@@ -768,6 +771,23 @@
       padding: clamp(10px, 1.5vh, 16px) clamp(12px, 1.5vw, 20px);
       gap: clamp(8px, 1.2vh, 12px);
       overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Keep the four-column layout inside compact Android TV/WebView widths. */
+    @media (max-width: 900px) {
+      .live-categories-col {
+        width: clamp(150px, 22vw, 210px);
+        flex-basis: clamp(150px, 22vw, 210px);
+      }
+      .live-channels-col {
+        width: clamp(180px, 26vw, 260px);
+        flex-basis: clamp(180px, 26vw, 260px);
+      }
+      .live-player-col {
+        flex: 1 1 0%;
+        min-width: 0;
+      }
     }
 
     .video-viewport {
