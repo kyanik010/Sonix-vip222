@@ -505,11 +505,22 @@ class MainActivity : ComponentActivity() {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(5000, 30000, 1500, 5000)
             .build()
-        val audioPlayer = ExoPlayer.Builder(this).setLoadControl(loadControl).build().apply {
-            trackSelectionParameters = trackSelectionParameters.buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true).build()
-            volume = externalAudioVolume
-        }
+        // Use the same IPTV HTTP identity and redirect handling as the primary
+        // video player. Some providers reject ExoPlayer's default User-Agent.
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("SONIX-TV/1.0")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(30000)
+        val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+        val audioPlayer = ExoPlayer.Builder(this)
+            .setLoadControl(loadControl)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
+                trackSelectionParameters = trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true).build()
+                volume = externalAudioVolume
+            }
         secondaryAudioPlayer = audioPlayer
         audioPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -536,7 +547,21 @@ class MainActivity : ComponentActivity() {
             }
         })
         try {
-            audioPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(externalAudioSourceUrl)))
+            val audioUri = Uri.parse(externalAudioSourceUrl)
+            val extension = audioUri.lastPathSegment
+                ?.substringAfterLast('.', "")
+                ?.lowercase()
+                .orEmpty()
+            val mimeType = when (extension) {
+                "m3u8" -> MimeTypes.APPLICATION_M3U8
+                "mpd" -> MimeTypes.APPLICATION_MPD
+                else -> null
+            }
+            val mediaItem = MediaItem.Builder()
+                .setUri(audioUri)
+                .apply { if (mimeType != null) setMimeType(mimeType) }
+                .build()
+            audioPlayer.setMediaItem(mediaItem)
             audioPlayer.prepare()
             audioPlayer.play()
         } catch (error: Exception) {
