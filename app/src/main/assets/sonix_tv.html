@@ -2902,7 +2902,15 @@
               this.navigateSpatial('right');
               break;
             case 'Enter':
-              if (this.currentFocusedElement) {
+              if (this.currentFocusedElement &&
+                  this.currentFocusedElement.matches('.channel-row.selected') &&
+                  videoPlaybackController && videoPlaybackController.currentItem &&
+                  !videoPlaybackController.isFullscreen &&
+                  window.NativePlayback && window.NativePlayback.isActive()) {
+                // A second OK/Enter on the selected playing item enters fullscreen
+                // on TV remotes, where double-click/touch gestures are unavailable.
+                videoPlaybackController.toggleFullscreen();
+              } else if (this.currentFocusedElement) {
                 this.currentFocusedElement.click();
               }
               break;
