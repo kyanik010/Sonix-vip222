@@ -2803,7 +2803,10 @@
         if (videoUrl && channel.streamUrl.replace(/\/$/, '') === String(videoUrl).trim().replace(/\/$/, '')) { showToast('مصدر الصوت يجب أن يكون قناة مستقلة عن الفيديو'); return; }
         this.selectedSourceChannel = channel; this.sourceNameEl.textContent = channel.name + ' (' + channel.categoryName + ')';
         document.querySelectorAll('.audio-picker-item').forEach(el => el.classList.toggle('active', el.dataset.channelId === String(channel.id)));
-        showToast('تم اختيار ' + channel.name + ' كمصدر صوت مستقل'); if (this.isActive) this.startExternalAudio();
+        showToast('تم اختيار ' + channel.name + ' — جارٍ تشغيل الصوت الخارجي');
+        // Selecting a source starts it immediately; the explicit start button
+        // remains available to retry or restart the selected source.
+        this.startExternalAudio();
       }
       startExternalAudio() {
         const source = this.selectedSourceChannel;
