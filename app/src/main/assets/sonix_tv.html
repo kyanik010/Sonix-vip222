@@ -1591,6 +1591,115 @@
     .sonix-login-card button{min-height:38px;border:0;border-radius:8px;background:var(--accent-gold);color:#0A0F14;font:inherit;font-weight:900}
     #sonix-login-message{min-height:16px;color:var(--danger-red);font-size:.78rem;text-align:center}
     .provider-logo{width:30px;height:30px;object-fit:contain;border-radius:5px}
+  
+    /* Series episodes cards: scoped to the series modal only */
+    #series-episodes-list {
+      max-height:55vh;
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px;
+    }
+    #series-episodes-list .series-season-heading {
+      padding:10px 2px 4px;
+      color:var(--accent-gold);
+      font-weight:800;
+      font-size:14px;
+    }
+    #series-episodes-list .episode-card {
+      direction:rtl;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      width:100%;
+      min-width:0;
+      padding:9px;
+      border:1px solid var(--border-panel);
+      border-radius:10px;
+      background:var(--bg-panel);
+      color:inherit;
+      text-align:right;
+      cursor:pointer;
+      flex:0 0 auto;
+      transition:border-color .15s ease, background .15s ease;
+    }
+    #series-episodes-list .episode-card:focus,
+    #series-episodes-list .episode-card:focus-visible {
+      outline:2px solid var(--accent-gold);
+      outline-offset:1px;
+    }
+    #series-episodes-list .episode-card:active {
+      background:var(--bg-main-end);
+    }
+    #series-episodes-list .episode-thumbnail {
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 112px;
+      width:112px;
+      aspect-ratio:16/9;
+      overflow:hidden;
+      border-radius:7px;
+      background:var(--bg-main-start);
+      border:1px solid var(--border-panel);
+    }
+    #series-episodes-list .episode-thumbnail img {
+      width:100%;height:100%;object-fit:cover;display:block;
+    }
+    #series-episodes-list .episode-play-icon {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      background:rgba(0,0,0,.28);
+      font-size:25px;
+      text-shadow:0 1px 4px #000;
+      pointer-events:none;
+    }
+    #series-episodes-list .episode-details {
+      display:flex;
+      flex:1 1 auto;
+      flex-direction:column;
+      justify-content:center;
+      gap:4px;
+      min-width:0;
+      overflow:hidden;
+    }
+    #series-episodes-list .episode-code {
+      color:var(--accent-gold);
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.3px;
+      white-space:nowrap;
+    }
+    #series-episodes-list .episode-name {
+      color:var(--text-primary,#fff);
+      font-size:13px;
+      font-weight:700;
+      line-height:1.5;
+      overflow:hidden;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow-wrap:anywhere;
+    }
+    #series-episodes-list .episode-duration {
+      color:var(--text-secondary,#9AA7B5);
+      font-size:11px;
+      direction:ltr;
+      text-align:right;
+      white-space:nowrap;
+    }
+    @media (max-width:420px) {
+      #series-episodes-list .episode-thumbnail { flex-basis:96px; width:96px; }
+      #series-episodes-list .episode-card { gap:9px; padding:8px; }
+    }
   </style>
 </head>
 <body>
@@ -2207,7 +2316,7 @@
     <div id="series-episodes-modal" class="modal-backdrop">
       <div class="modal-window">
         <div class="modal-header"><div class="modal-title">مواسم وحلقات المسلسل</div><button class="modal-close-btn focusable" onclick="closeAllModals()">&times;</button></div>
-        <div id="series-episodes-list" class="modal-body" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <div id="series-episodes-list" class="modal-body" role="list" aria-label="حلقات المسلسل"></div>
         <div class="modal-footer"><button class="action-btn focusable" onclick="closeAllModals()">إغلاق</button></div>
       </div>
     </div>
@@ -3388,25 +3497,72 @@
         const episodes=data.episodes || {};
         const list=document.getElementById('series-episodes-list');
         list.innerHTML='';
+        const formatEpisodeDuration=(episode)=>{
+          const info=episode.info || {};
+          const raw=info.duration || episode.duration || '';
+          if(raw && /^\\d{1,2}:\\d{2}:\\d{2}$/.test(String(raw))) return String(raw);
+          const seconds=Number(info.duration_secs || episode.duration_secs || 0);
+          if(seconds>0) {
+            const h=Math.floor(seconds/3600);
+            const m=Math.floor((seconds%3600)/60);
+            const sec=seconds%60;
+            return [h,m,sec].map(value=>String(value).padStart(2,'0')).join(':');
+          }
+          return raw ? String(raw) : 'المدة غير متاحة';
+        };
         Object.keys(episodes).sort((a,b)=>Number(a)-Number(b)).forEach(season=>{
           const heading=document.createElement('div');
+          heading.className='series-season-heading';
           heading.textContent='الموسم ' + season;
-          heading.style.cssText='padding:10px;color:var(--accent-gold);font-weight:800';
           list.appendChild(heading);
           (episodes[season] || []).forEach(ep=>{
-            const button=document.createElement('button');
-            button.className='action-btn focusable';
-            button.textContent='الحلقة ' + (ep.episode_num || '') + ' - ' + (ep.title || ep.id);
-            button.addEventListener('click',()=>{
+            const episodeNumber=Number(ep.episode_num || 0);
+            const episodeCode='S'+String(season).padStart(2,'0')+'E'+String(episodeNumber).padStart(2,'0');
+            const info=ep.info || {};
+            const thumbnailUrl=info.movie_image || info.cover_big || ep.movie_image || ep.cover || '';
+            const card=document.createElement('button');
+            card.type='button';
+            card.className='episode-card focusable';
+            card.setAttribute('role','listitem');
+            card.setAttribute('aria-label',episodeCode+' '+(ep.title || 'الحلقة'));
+            const thumbnail=document.createElement('span');
+            thumbnail.className='episode-thumbnail';
+            if(thumbnailUrl) {
+              const image=document.createElement('img');
+              image.src=thumbnailUrl;
+              image.alt='';
+              image.loading='lazy';
+              image.onerror=()=>{ image.remove(); };
+              thumbnail.appendChild(image);
+            }
+            const play=document.createElement('span');
+            play.className='episode-play-icon';
+            play.setAttribute('aria-hidden','true');
+            play.textContent='▶';
+            thumbnail.appendChild(play);
+            const details=document.createElement('span');
+            details.className='episode-details';
+            const code=document.createElement('span');
+            code.className='episode-code';
+            code.textContent=episodeCode;
+            const name=document.createElement('span');
+            name.className='episode-name';
+            name.textContent=ep.title || ('الحلقة '+(ep.episode_num || ''));
+            const duration=document.createElement('span');
+            duration.className='episode-duration';
+            duration.textContent=formatEpisodeDuration(ep);
+            details.append(code,name,duration);
+            card.append(thumbnail,details);
+            card.addEventListener('click',()=>{
               const ext=ep.container_extension || 'mp4';
               const url=parseNative(window.XtreamBridge.streamUrl('series',String(ep.id),ext)).url;
               closeAllModals();
               selectItem({...item,seriesId:null,id:String(ep.id),name:ep.title || item.name,streamUrl:url});
             });
-            list.appendChild(button);
+            list.appendChild(card);
           });
         });
-        if(!list.children.length) throw new Error('لا توجد حلقات متاحة لهذا المسلسل');
+        if(!list.querySelector('.episode-card')) throw new Error('لا توجد حلقات متاحة لهذا المسلسل');
         document.getElementById('series-episodes-modal').classList.add('active');
       } catch(error) { showToast(error.message || 'تعذر تحميل الحلقات'); }
     }
