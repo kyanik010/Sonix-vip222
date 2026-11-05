@@ -17,7 +17,9 @@ import android.graphics.ColorFilter
 import android.graphics.Canvas
 import android.net.Uri
 import android.view.ViewGroup
-import android.view.TextureView
+import android.view.LayoutInflater
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import android.widget.FrameLayout
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -45,7 +47,8 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var rootContainer: FrameLayout? = null
     private var nativePlayer: ExoPlayer? = null
-    private var nativePlayerView: TextureView? = null
+    private var nativePlayerView: PlayerView? = null
+    private var resumeNativePlayerAfterPause = false
     @Volatile private var nativePlayerActive = false
     @Volatile private var nativePlayerPlaying = false
     private var secondaryAudioPlayer: ExoPlayer? = null
@@ -141,14 +144,8 @@ class MainActivity : ComponentActivity() {
                         "رابط البث غير صالح"
                     }
                     val container = rootContainer ?: throw IllegalStateException("واجهة المشغل غير جاهزة")
-                    val density = resources.displayMetrics.density
-                    val params = FrameLayout.LayoutParams(
-                        (width * density).roundToInt().coerceAtLeast(1),
-                        (height * density).roundToInt().coerceAtLeast(1)
-                    ).apply {
-                        leftMargin = (left * density).roundToInt()
-                        topMargin = (top * density).roundToInt()
-                    }
+                    val params = nativePlayerLayoutParams(left, top, width, height)
+                        ?: throw IllegalStateException("مساحة معاينة الفيديو غير صالحة")
 
                     val httpDataSourceFactory = DefaultHttpDataSource.Factory()
                         .setUserAgent("SONIX-TV/1.0")
@@ -159,33 +156,38 @@ class MainActivity : ComponentActivity() {
                     val player = ExoPlayer.Builder(this@MainActivity)
                         .setMediaSourceFactory(mediaSourceFactory)
                         .build()
-                    val textureView = TextureView(this@MainActivity).apply {
-                        // TextureView does not support background drawables. Keep its
-                        // surface opaque and let ExoPlayer render directly into it.
-                        isOpaque = true
+                    // PlayerView owns the video output surface for its complete lifecycle.
+                    // TextureView is selected because it composes beneath the transparent
+                    // WebView, allowing the existing HTML controls to remain interactive.
+                    val playerView = LayoutInflater.from(this@MainActivity)
+                        .inflate(R.layout.native_player_view, container, false) as PlayerView
+                    playerView.apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        setKeepContentOnPlayerReset(true)
+                        setShutterBackgroundColor(Color.TRANSPARENT)
+                        setBackgroundColor(Color.TRANSPARENT)
                         isFocusable = false
                         isFocusableInTouchMode = false
                     }
 
                     nativePlayer = player
-                    nativePlayerView = textureView
+                    nativePlayerView = playerView
                     nativePlayerActive = true
                     nativePlayerPlaying = false
                     player.volume = if (externalAudioActive || nativeVideoMuted) 0f else 1f
-                    // Keep the native video surface behind the transparent WebView viewport,
-                    // so the existing HTML controls and overlays remain interactive.
-                    container.addView(textureView, 0, params)
-                    player.setVideoTextureView(textureView)
-                    textureView.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+                    container.addView(playerView, 0, params)
+                    playerView.player = player
+                    playerView.addOnLayoutChangeListener { view, l, t, r, b, _, _, _, _ ->
                         android.util.Log.d(
                             "SONIXSurface",
-                            "TextureView layout=${right - left}x${bottom - top} shown=${view.isShown} attached=${view.isAttachedToWindow} opaque=${view.isOpaque}"
+                            "PlayerView layout=${r - l}x${b - t} shown=${view.isShown} attached=${view.isAttachedToWindow} surface=${playerView.videoSurfaceView?.javaClass?.simpleName}"
                         )
                     }
-                    textureView.post {
+                    playerView.post {
                         android.util.Log.d(
                             "SONIXSurface",
-                            "TextureView post-layout=${textureView.width}x${textureView.height} shown=${textureView.isShown} attached=${textureView.isAttachedToWindow}; requested=${params.width}x${params.height} at ${params.leftMargin},${params.topMargin}"
+                            "PlayerView post-layout=${playerView.width}x${playerView.height} shown=${playerView.isShown} attached=${playerView.isAttachedToWindow}; requested=${params.width}x${params.height} at ${params.leftMargin},${params.topMargin}"
                         )
                     }
 
@@ -193,7 +195,7 @@ class MainActivity : ComponentActivity() {
                         override fun onPlaybackStateChanged(playbackState: Int) {
                             android.util.Log.d(
                                 "SONIXSurface",
-                                "playerState=${playbackState} videoFormat=${player.videoFormat?.width}x${player.videoFormat?.height} texture=${textureView.width}x${textureView.height} shown=${textureView.isShown}"
+                                "playerState=${playbackState} videoFormat=${player.videoFormat?.width}x${player.videoFormat?.height} playerView=${playerView.width}x${playerView.height} shown=${playerView.isShown}"
                             )
                             when (playbackState) {
                                 Player.STATE_BUFFERING -> webView?.evaluateJavascript(
@@ -215,7 +217,7 @@ class MainActivity : ComponentActivity() {
                         override fun onRenderedFirstFrame() {
                             android.util.Log.i(
                                 "SONIXSurface",
-                                "FIRST_FRAME_RENDERED texture=${textureView.width}x${textureView.height} shown=${textureView.isShown}"
+                                "FIRST_FRAME_RENDERED playerView=${playerView.width}x${playerView.height} shown=${playerView.isShown}"
                             )
                         }
 
@@ -397,14 +399,41 @@ class MainActivity : ComponentActivity() {
         fun resize(left: Float, top: Float, width: Float, height: Float) {
             runOnUiThread {
                 val view = nativePlayerView ?: return@runOnUiThread
-                val density = resources.displayMetrics.density
-                val params = view.layoutParams as? FrameLayout.LayoutParams ?: return@runOnUiThread
-                params.width = (width * density).roundToInt().coerceAtLeast(1)
-                params.height = (height * density).roundToInt().coerceAtLeast(1)
-                params.leftMargin = (left * density).roundToInt()
-                params.topMargin = (top * density).roundToInt()
+                val params = nativePlayerLayoutParams(left, top, width, height)
+                    ?: return@runOnUiThread
                 view.layoutParams = params
             }
+        }
+    }
+
+    private fun nativePlayerLayoutParams(
+        left: Float,
+        top: Float,
+        width: Float,
+        height: Float
+    ): FrameLayout.LayoutParams? {
+        if (!left.isFinite() || !top.isFinite() || !width.isFinite() || !height.isFinite()) return null
+        if (width <= 0f || height <= 0f) return null
+
+        val web = webView ?: return null
+        val root = rootContainer ?: return null
+        val density = resources.displayMetrics.density
+        // getBoundingClientRect() reports CSS pixels. Include the WebView page zoom
+        // and its actual on-screen origin instead of assuming a 1:1 root coordinate space.
+        val scale = density * web.scale
+        val webLocation = IntArray(2)
+        val rootLocation = IntArray(2)
+        web.getLocationInWindow(webLocation)
+        root.getLocationInWindow(rootLocation)
+        val originX = webLocation[0] - rootLocation[0]
+        val originY = webLocation[1] - rootLocation[1]
+
+        return FrameLayout.LayoutParams(
+            cssPixelsToAndroidPixels(width, density, web.scale).coerceAtLeast(1),
+            cssPixelsToAndroidPixels(height, density, web.scale).coerceAtLeast(1)
+        ).apply {
+            leftMargin = originX + (left * scale).roundToInt()
+            topMargin = originY + (top * scale).roundToInt()
         }
     }
 
@@ -543,11 +572,13 @@ class MainActivity : ComponentActivity() {
 
     private fun stopNativePlayer() {
         val player = nativePlayer
-        val textureView = nativePlayerView
-        if (player != null && textureView != null) {
-            try { player.clearVideoTextureView(textureView) } catch (_: Exception) { }
+        val playerView = nativePlayerView
+        // Detach PlayerView before releasing ExoPlayer so Media3 releases its surface
+        // cleanly and cannot render into a removed/reused view.
+        if (playerView != null) {
+            playerView.player = null
+            rootContainer?.removeView(playerView)
         }
-        textureView?.let { rootContainer?.removeView(it) }
         nativePlayerView = null
         player?.release()
         nativePlayer = null
@@ -618,8 +649,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         webView?.onResume()
-        nativePlayer?.play()
-        if (externalAudioActive) secondaryAudioPlayer?.play()
+        if (resumeNativePlayerAfterPause) nativePlayer?.play()
+        if (resumeNativePlayerAfterPause && externalAudioActive) secondaryAudioPlayer?.play()
+        resumeNativePlayerAfterPause = false
         webView?.evaluateJavascript(
             "(function() { if (typeof window.ensureHomeScreen === 'function') { window.ensureHomeScreen(); } })()",
             null
@@ -632,6 +664,7 @@ class MainActivity : ComponentActivity() {
             "(function() { if (window.videoPlaybackController) { window.videoPlaybackController.pause(); } })()",
             null
         )
+        resumeNativePlayerAfterPause = nativePlayer?.isPlaying == true
         nativePlayer?.pause()
         secondaryAudioPlayer?.pause()
         webView?.onPause()
@@ -696,3 +729,7 @@ internal fun externalAudioRetryDelayMs(attempt: Int): Long {
     val delays = longArrayOf(1000L, 2000L, 4000L, 8000L, 16000L, 30000L)
     return delays[(attempt.coerceAtLeast(1) - 1).coerceAtMost(delays.lastIndex)]
 }
+
+
+internal fun cssPixelsToAndroidPixels(value: Float, density: Float, pageScale: Float): Int =
+    (value * density * pageScale).roundToInt()
