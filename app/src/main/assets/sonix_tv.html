@@ -1090,7 +1090,7 @@
     .video-viewport.is-live-mode #ctrl-seek-forward { display: none; }
     .live-player-col.has-active-playback .player-preview-actions { display: none !important; }
     .video-viewport.is-fullscreen .player-playback-controls.visible {
-      display: grid;
+      display: flex;
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
@@ -1153,6 +1153,7 @@
       background: rgba(255,255,255,.07) !important;
     }
     .player-playback-controls .player-quality-menu {
+      display: none;
       position: absolute;
       right: 0;
       bottom: calc(100% + 7px);
