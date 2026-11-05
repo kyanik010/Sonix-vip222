@@ -2502,7 +2502,9 @@
       }
 
       showPlaybackControls() {
-        if (!this.currentItem || !window.NativePlayback || !window.NativePlayback.isActive()) return;
+        // Playback controls are fullscreen-only. Ignore taps and remote navigation
+        // while the native video is embedded in the preview panel.
+        if (!this.isFullscreen || !this.currentItem || !window.NativePlayback || !window.NativePlayback.isActive()) return;
         const controls = document.getElementById('player-playback-controls');
         if (!controls) return;
         controls.classList.add('visible');
@@ -2677,6 +2679,9 @@
         const enteringFullscreen = !this.isFullscreen;
 
         if (enteringFullscreen) {
+          this.fullscreenPreviousFocus = remoteNavigator
+            ? remoteNavigator.currentFocusedElement
+            : document.activeElement;
           // Move the viewport out of the app's multi-column layout. This avoids
           // fixed-position elements being clipped by transformed/overflow ancestors.
           this.fullscreenOriginalParent = this.viewport.parentNode;
@@ -2690,6 +2695,8 @@
           this.isFullscreen = true;
           this.viewport.classList.add('is-fullscreen');
         } else {
+          // Hide controls and dismiss any open quality menu before restoring preview.
+          this.hidePlaybackControls();
           this.isFullscreen = false;
           this.viewport.classList.remove('is-fullscreen', 'is-live-mode');
           document.body.classList.remove('sonix-video-fullscreen');
@@ -2704,6 +2711,14 @@
           }
           this.fullscreenOriginalParent = null;
           this.fullscreenOriginalNextSibling = null;
+          const previousFocus = this.fullscreenPreviousFocus;
+          this.fullscreenPreviousFocus = null;
+          if (remoteNavigator) {
+            const canRestoreFocus = previousFocus && previousFocus.isConnected &&
+              previousFocus.getClientRects().length > 0;
+            const selectedRow = document.querySelector('.channel-row.selected');
+            remoteNavigator.focusElement(canRestoreFocus ? previousFocus : selectedRow);
+          }
         }
 
         // Wait for the portal/layout transition, then resize the native surface
@@ -2711,6 +2726,7 @@
         requestAnimationFrame(() => this.syncNativeBounds());
         const exitBtn = document.getElementById('btn-exit-fullscreen');
         if (this.isFullscreen) {
+          this.showPlaybackControls();
           showToast('تم التكبير إلى ملء الشاشة (اضغط تصغير الشاشة للخروج)');
           if (exitBtn && remoteNavigator) remoteNavigator.focusElement(exitBtn);
         } else {
@@ -2849,14 +2865,14 @@
           if (videoPlaybackController && videoPlaybackController.currentItem &&
               (e.key === 'ArrowUp' || e.key === 'Up' || e.key === 'ArrowDown' || e.key === 'Down')) {
             const controls = document.getElementById('player-playback-controls');
-            if (controls && !controls.classList.contains('visible')) {
+            if (videoPlaybackController.isFullscreen && controls && !controls.classList.contains('visible')) {
               e.preventDefault();
               videoPlaybackController.showPlaybackControls();
               const firstControl = controls.querySelector('.playback-control-btn:not([disabled])');
               if (firstControl) this.focusElement(firstControl);
               return;
             }
-            if (controls && controls.classList.contains('visible')) {
+            if (videoPlaybackController.isFullscreen && controls && controls.classList.contains('visible')) {
               videoPlaybackController.showPlaybackControls();
             }
           }
@@ -2946,7 +2962,7 @@
 
       navigateSpatial(direction) {
         if (!this.currentFocusedElement) {
-          const visibleFocusables = Array.from(document.querySelectorAll('.view-screen.active .focusable:not([disabled])'));
+          const visibleFocusables = this.getVisibleFocusableElements();
           if (visibleFocusables.length) {
             this.focusElement(visibleFocusables[0]);
           }
@@ -2995,7 +3011,7 @@
         }
 
         // 2. Spatial geometric fallback across different columns and screen regions
-        const visibleFocusables = Array.from(document.querySelectorAll('.view-screen.active .focusable:not([disabled])'));
+        const visibleFocusables = this.getVisibleFocusableElements();
         if (!visibleFocusables.length) return;
 
         const currentRect = this.currentFocusedElement.getBoundingClientRect();
@@ -3040,6 +3056,17 @@
         if (bestTarget) {
           this.focusElement(bestTarget);
         }
+      }
+
+      getVisibleFocusableElements() {
+        const fullscreenViewport = videoPlaybackController && videoPlaybackController.isFullscreen
+          ? videoPlaybackController.viewport
+          : null;
+        const selector = '.focusable:not([disabled])';
+        const candidates = fullscreenViewport
+          ? Array.from(fullscreenViewport.querySelectorAll(selector))
+          : Array.from(document.querySelectorAll('.view-screen.active ' + selector));
+        return candidates.filter(element => element.getClientRects().length > 0);
       }
 
       focusElement(element) {
