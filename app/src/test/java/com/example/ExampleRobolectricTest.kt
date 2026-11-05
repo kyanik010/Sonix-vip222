@@ -1,7 +1,6 @@
 package com.example
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -9,9 +8,10 @@ import java.io.File
 class ExampleRobolectricTest {
 
     @Test
-    fun cssPreviewBoundsAreScaledByDensityAndPageZoom() {
-        assertEquals(360, cssPixelsToAndroidPixels(100f, 3f, 1.2f))
-        assertEquals(0, cssPixelsToAndroidPixels(0f, 2f, 1f))
+    fun cssPreviewBoundsAreScaledByEffectivePixelRatio() {
+        // The WebView reports the effective devicePixelRatio, including page zoom.
+        assertEquals(360, cssPixelsToAndroidPixels(100f, 3.6f))
+        assertEquals(0, cssPixelsToAndroidPixels(0f, 2f))
     }
 
     @Test
