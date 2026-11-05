@@ -2563,9 +2563,12 @@
         requestAnimationFrame(() => {
           if (!this.currentItem || !window.NativePlayback || !this.viewport) return;
           const rect = this.viewport.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) {
-            window.NativePlayback.resize(rect.left, rect.top, rect.width, rect.height);
-          }
+          // Always synchronize visibility as well as size. Keeping the last non-zero
+          // bounds when the viewport is hidden/collapsed leaves a stale native overlay.
+          window.NativePlayback.resize(
+            rect.left || 0, rect.top || 0,
+            rect.width || 0, rect.height || 0
+          );
         });
       }
 
