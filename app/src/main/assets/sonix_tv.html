@@ -2570,7 +2570,7 @@
         }
         // Live channels, movies and series episodes all use the same native Media3 player.
         console.info('[SONIXSurface] sending native bounds', rect.left, rect.top, rect.width, rect.height);
-        window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
+        window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height, window.devicePixelRatio || 1);
         if (window.NativePlayback.setVideoQuality) window.NativePlayback.setVideoQuality(Number(sonixSettings.quality));
         if (window.NativePlayback.setSubtitlesEnabled) window.NativePlayback.setSubtitlesEnabled(Boolean(sonixSettings.subtitles));
       }
@@ -2584,7 +2584,7 @@
           // bounds when the viewport is hidden/collapsed leaves a stale native overlay.
           window.NativePlayback.resize(
             rect.left || 0, rect.top || 0,
-            rect.width || 0, rect.height || 0
+            rect.width || 0, rect.height || 0, window.devicePixelRatio || 1
           );
         });
       }
