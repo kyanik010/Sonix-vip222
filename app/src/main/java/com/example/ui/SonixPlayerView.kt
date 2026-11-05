@@ -43,11 +43,11 @@ fun SonixPlayerView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val player = remember(context) { ExoPlayer.Builder(context).build() }
+    val exoPlayer = remember(context) { ExoPlayer.Builder(context).build() }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var isMuted by remember { mutableStateOf(false) }
 
-    DisposableEffect(player) {
+    DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 playbackError = error.localizedMessage ?: "تعذر تشغيل البث"
@@ -56,28 +56,28 @@ fun SonixPlayerView(
                 if (playbackState == Player.STATE_READY) playbackError = null
             }
         }
-        player.addListener(listener)
+        exoPlayer.addListener(listener)
         onDispose {
-            player.removeListener(listener)
-            player.release()
+            exoPlayer.removeListener(listener)
+            exoPlayer.release()
         }
     }
 
     LaunchedEffect(channel.id, channel.streamUrl) {
         playbackError = null
-        player.stop()
-        player.clearMediaItems()
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         if (channel.streamUrl.isNotBlank()) {
-            player.setMediaItem(MediaItem.fromUri(channel.streamUrl))
-            player.prepare()
-            player.playWhenReady = true
+            exoPlayer.setMediaItem(MediaItem.fromUri(channel.streamUrl))
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
         } else {
             playbackError = "رابط البث غير متوفر"
         }
     }
 
     LaunchedEffect(isMuted, dualAudioState.isActive) {
-        player.volume = if (isMuted || dualAudioState.isActive) 0f else 1f
+        exoPlayer.volume = if (isMuted || dualAudioState.isActive) 0f else 1f
     }
 
     Column(
@@ -104,11 +104,11 @@ fun SonixPlayerView(
                         controllerAutoShow = true
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         keepContentOnPlayerReset = true
-                        player = this@SonixPlayerView.let { player }
+                        this.player = exoPlayer
                         setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                     }
                 },
-                update = { view -> if (view.player !== player) view.player = player }
+                update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer }
             )
 
             Row(
