@@ -1074,13 +1074,17 @@
       pointer-events: none;
       transition: opacity .18s ease, visibility .18s ease;
     }
-    .live-player-col.is-live-mode .player-playback-controls {
+    .live-player-col.is-live-mode .player-playback-controls,
+    .video-viewport.is-live-mode .player-playback-controls {
       grid-template-columns: repeat(5, minmax(0, 1fr));
     }
     .live-player-col.is-live-mode #ctrl-seek-back,
-    .live-player-col.is-live-mode #ctrl-seek-forward { display: none; }
+    .live-player-col.is-live-mode #ctrl-seek-forward,
+    .video-viewport.is-live-mode #ctrl-seek-back,
+    .video-viewport.is-live-mode #ctrl-seek-forward { display: none; }
     .live-player-col.has-active-playback .player-preview-actions { display: none !important; }
-    .live-player-col.has-active-playback .player-playback-controls.visible {
+    .live-player-col.has-active-playback .player-playback-controls.visible,
+    .video-viewport.is-fullscreen .player-playback-controls.visible {
       display: grid;
       opacity: 1;
       visibility: visible;
@@ -2678,13 +2682,17 @@
           // fixed-position elements being clipped by transformed/overflow ancestors.
           this.fullscreenOriginalParent = this.viewport.parentNode;
           this.fullscreenOriginalNextSibling = this.viewport.nextSibling;
+          // Preserve live-channel control layout after the viewport is portaled
+          // out of .live-player-col into document.body.
+          const playerPanel = document.querySelector('.live-player-col');
+          this.viewport.classList.toggle('is-live-mode', !!(playerPanel && playerPanel.classList.contains('is-live-mode')));
           document.body.appendChild(this.viewport);
           document.body.classList.add('sonix-video-fullscreen');
           this.isFullscreen = true;
           this.viewport.classList.add('is-fullscreen');
         } else {
           this.isFullscreen = false;
-          this.viewport.classList.remove('is-fullscreen');
+          this.viewport.classList.remove('is-fullscreen', 'is-live-mode');
           document.body.classList.remove('sonix-video-fullscreen');
           const parent = this.fullscreenOriginalParent;
           if (parent) {
