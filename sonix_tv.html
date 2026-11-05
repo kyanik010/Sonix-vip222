@@ -2243,6 +2243,7 @@
 
       loadItem(item) {
         if (!item) return;
+        this.nativeViewportRequestId += 1;
         this.currentItem = item;
         this.retryAttempts = 0;
         this.errorEl.classList.remove('active');
