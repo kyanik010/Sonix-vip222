@@ -792,7 +792,11 @@
 
     .video-viewport {
       position: relative;
+      display: block;
+      flex: 0 0 auto;
       width: 100%;
+      height: auto;
+      min-height: 0;
       aspect-ratio: 16 / 9;
       background: #000;
       border-radius: 16px;
@@ -2148,6 +2152,7 @@
         this.retryAttempts = 0;
         this.maxRetries = 3;
         this.isFullscreen = false;
+        this.nativeViewportRequestId = 0;
         this.bindEvents();
       }
 
@@ -2196,6 +2201,46 @@
         }
       }
 
+      playNativeWhenViewportReady(streamUrl, item, viewport) {
+        const requestId = ++this.nativeViewportRequestId;
+        const maxFrames = 15;
+        let frame = 0;
+
+        const checkAndPlay = () => {
+          if (requestId !== this.nativeViewportRequestId || this.currentItem !== item) return;
+
+          const rect = viewport.getBoundingClientRect();
+          const rootWidth = window.innerWidth;
+          const rootHeight = window.innerHeight;
+          const finite = [rect.left, rect.top, rect.right, rect.bottom, rect.width, rect.height,
+            rootWidth, rootHeight].every(Number.isFinite);
+          const hasSize = rect.width > 0 && rect.height > 0;
+          const insideRoot = finite && rect.left >= 0 && rect.top >= 0 &&
+            rect.right <= rootWidth && rect.bottom <= rootHeight;
+
+          if (hasSize && insideRoot) {
+            window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
+            this.updateUiInfo(item);
+            return;
+          }
+
+          frame += 1;
+          if (frame < maxFrames) {
+            requestAnimationFrame(checkAndPlay);
+            return;
+          }
+
+          console.warn('[SONIXSurface] preview host did not obtain visible bounds', {
+            left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom,
+            width: rect.width, height: rect.height, rootWidth, rootHeight,
+            finite, hasSize, insideRoot
+          });
+          this.showError('تعذر تجهيز مساحة المعاينة داخل الشاشة. حاول تغيير حجم الواجهة أو إعادة المحاولة.');
+        };
+
+        requestAnimationFrame(checkAndPlay);
+      }
+
       loadItem(item) {
         if (!item) return;
         this.currentItem = item;
@@ -2227,9 +2272,7 @@
             this.showError('تعذر تحديد مساحة عرض الفيديو.');
             return;
           }
-          const rect = viewport.getBoundingClientRect();
-          window.NativePlayback.play(streamUrl, rect.left, rect.top, rect.width, rect.height);
-          this.updateUiInfo(item);
+          this.playNativeWhenViewportReady(streamUrl, item, viewport);
           return;
         }
 
